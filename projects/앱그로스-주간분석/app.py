@@ -59,7 +59,7 @@ COLORS = {"Google": "#4285F4", "Facebook": "#1877F2"}
 WEEK_COLORS = {"W1": "#5B8FF9", "W2": "#FF6B6B"}
 
 # ──────────────────────────────────────────────
-# 메타 광고소재별 데이터 (Airbridge 전환 기준)
+# 메타 광고소재별 데이터 (marketing_reportrow + airbridge_raw.events)
 # ──────────────────────────────────────────────
 CREATIVE_RAW = {
     "소재명": [
@@ -83,17 +83,19 @@ CREATIVE_RAW = {
         "260403_img_ston-tshirt",
     ],
     "주차": ["W1", "W2"] * 9,
-    "클릭": [7_758, 7_978, 4_353, 5_173, 3_289, 1_718, 1_029, 1_113, 396, 396, 0, 477, 0, 153, 0, 709, 0, 280],
-    "설치": [721, 652, 629, 516, 93, 0, 138, 125, 26, 26, 0, 65, 0, 7, 0, 117, 0, 40],
-    "가입": [174, 155, 91, 121, 54, 3, 29, 23, 3, 3, 0, 6, 0, 2, 0, 18, 0, 1],
-    "구매건": [40, 59, 23, 24, 24, 11, 2, 6, 3, 2, 0, 3, 0, 2, 0, 0, 0, 0],
-    "구매유저": [35, 44, 23, 22, 19, 9, 2, 5, 2, 2, 0, 2, 0, 2, 0, 0, 0, 0],
+    "노출": [108_897, 98_306, 100_350, 89_251, 14_672, 0, 23_724, 16_465, 3_556, 2_236, 0, 8_658, 1_942, 0, 0, 11_712, 0, 4_483],
+    "클릭": [2_311, 1_951, 2_103, 1_566, 344, 0, 561, 332, 158, 71, 0, 173, 58, 0, 0, 666, 0, 135],
+    "비용": [928_710, 799_230, 748_367, 640_432, 161_550, 0, 212_984, 118_050, 56_731, 30_165, 0, 93_548, 25_651, 0, 0, 123_339, 0, 50_758],
+    "설치": [721, 652, 629, 516, 93, 0, 138, 125, 26, 9, 0, 65, 12, 7, 0, 117, 0, 12],
+    "가입": [174, 155, 91, 121, 54, 3, 29, 23, 3, 5, 0, 6, 5, 2, 0, 18, 0, 2],
+    "구매건": [40, 59, 23, 24, 24, 11, 2, 6, 3, 1, 0, 3, 0, 2, 0, 0, 0, 0],
+    "구매유저": [35, 44, 23, 22, 19, 9, 2, 5, 2, 1, 0, 2, 0, 2, 0, 0, 0, 0],
     "구매액": [
         2_840_891, 4_473_639,
         1_450_626, 1_916_412,
         1_260_960, 439_331,
         163_800, 291_430,
-        113_596, 0,
+        113_596, 13_900,
         0, 421_160,
         0, 144_540,
         0, 0,
@@ -105,10 +107,17 @@ CREATIVE_RAW = {
 cr_df = pd.DataFrame(CREATIVE_RAW)
 
 # 소재 단위 산출 지표
-cr_df["CVR(가입)"] = cr_df["가입"] / cr_df["클릭"].replace(0, float("nan")) * 100
-cr_df["CVR(구매)"] = cr_df["구매건"] / cr_df["클릭"].replace(0, float("nan")) * 100
-cr_df["가입→구매 CVR"] = cr_df["구매건"] / cr_df["가입"].replace(0, float("nan")) * 100
-cr_df["ARPPU"] = cr_df["구매액"] / cr_df["구매유저"].replace(0, float("nan"))
+_nan = float("nan")
+cr_df["CTR"] = cr_df["클릭"] / cr_df["노출"].replace(0, _nan) * 100
+cr_df["CPC"] = cr_df["비용"] / cr_df["클릭"].replace(0, _nan)
+cr_df["CPI"] = cr_df["비용"] / cr_df["설치"].replace(0, _nan)
+cr_df["CVR(가입)"] = cr_df["가입"] / cr_df["클릭"].replace(0, _nan) * 100
+cr_df["CPA(가입)"] = cr_df["비용"] / cr_df["가입"].replace(0, _nan)
+cr_df["가입→구매 CVR"] = cr_df["구매건"] / cr_df["가입"].replace(0, _nan) * 100
+cr_df["CVR(구매)"] = cr_df["구매건"] / cr_df["클릭"].replace(0, _nan) * 100
+cr_df["CPA(구매)"] = cr_df["비용"] / cr_df["구매건"].replace(0, _nan)
+cr_df["ROAS"] = cr_df["구매액"] / cr_df["비용"].replace(0, _nan) * 100
+cr_df["ARPPU"] = cr_df["구매액"] / cr_df["구매유저"].replace(0, _nan)
 
 # 소재 유형 자동 분류
 def classify_creative(name):
@@ -496,7 +505,7 @@ with tab5:
 # ──────────────── 메타 소재별 탭 ────────────────
 with tab_cr:
     st.subheader("🎨 메타(Facebook) 광고소재별 성과")
-    st.caption("Airbridge 어트리뷰션 기준 | 클릭·설치·가입·구매·첫구매 포함")
+    st.caption("marketing_reportrow (노출·클릭·비용) + airbridge_raw.events (전환) 기준")
 
     cr_w2 = cr_df[cr_df["주차"] == "W2"].copy()
     cr_w1 = cr_df[cr_df["주차"] == "W1"].copy()
@@ -504,30 +513,30 @@ with tab_cr:
     # ── KPI 카드 ──
     total_rev_w2 = cr_w2["구매액"].sum()
     total_rev_w1 = cr_w1["구매액"].sum()
+    total_cost_w2 = cr_w2["비용"].sum()
+    total_cost_w1 = cr_w1["비용"].sum()
     top_rev_w2 = cr_w2.sort_values("구매액", ascending=False).iloc[0]
     top_share = top_rev_w2["구매액"] / total_rev_w2 * 100 if total_rev_w2 > 0 else 0
     active_count = len(cr_w2[cr_w2["구매건"] > 0])
-    total_clicks_w2 = cr_w2["클릭"].sum()
-    total_clicks_w1 = cr_w1["클릭"].sum()
+    roas_w2 = total_rev_w2 / total_cost_w2 * 100 if total_cost_w2 > 0 else 0
+    roas_w1 = total_rev_w1 / total_cost_w1 * 100 if total_cost_w1 > 0 else 0
 
     kc1, kc2, kc3, kc4, kc5, kc6 = st.columns(6)
     with kc1:
         st.metric("활성 소재 (W2)", f"{active_count}개")
     with kc2:
-        st.metric("총 클릭 (W2)", f"{total_clicks_w2:,.0f}",
-                  delta=f"{wow_pct(total_clicks_w1, total_clicks_w2):+.1f}%")
+        st.metric("총 비용 (W2)", f"{total_cost_w2:,.0f}원",
+                  delta=f"{wow_pct(total_cost_w1, total_cost_w2):+.1f}%", delta_color="inverse")
     with kc3:
         st.metric("총 구매액 (W2)", f"{total_rev_w2:,.0f}원",
                   delta=f"{wow_pct(total_rev_w1, total_rev_w2):+.1f}%")
     with kc4:
-        st.metric("1위 소재", top_rev_w2["소재(짧은이름)"][:18])
+        st.metric("ROAS (W2)", f"{roas_w2:.1f}%",
+                  delta=f"{roas_w2 - roas_w1:+.1f}%p")
     with kc5:
-        st.metric("1위 점유율", f"{top_share:.1f}%")
+        st.metric("1위 소재", top_rev_w2["소재(짧은이름)"][:18])
     with kc6:
-        total_first_w2 = cr_w2["첫구매"].sum()
-        total_first_w1 = cr_w1["첫구매"].sum()
-        st.metric("첫구매 (W2)", f"{total_first_w2}건",
-                  delta=f"{wow_pct(total_first_w1, total_first_w2):+.1f}%" if total_first_w1 > 0 else "N/A")
+        st.metric("1위 점유율", f"{top_share:.1f}%")
 
     st.markdown("---")
 
@@ -673,16 +682,96 @@ with tab_cr:
         fig.update_layout(title="소재유형별 클릭·설치·구매 (W2)", barmode="group", height=350)
         st.plotly_chart(fig, use_container_width=True)
 
-    # ── ARPPU 비교 ──
-    st.markdown("#### 소재별 ARPPU (W2)")
-    cr_w2_arppu = cr_w2[cr_w2["구매유저"] > 0].sort_values("ARPPU", ascending=True)
-    fig = go.Figure(data=[go.Bar(
-        y=cr_w2_arppu["소재(짧은이름)"], x=cr_w2_arppu["ARPPU"],
-        orientation="h", marker_color="#7262FD",
-        text=[f"{v:,.0f}원" for v in cr_w2_arppu["ARPPU"]], textposition="outside",
-    )])
-    fig.update_layout(title="소재별 ARPPU — 구매유저 있는 소재만 (W2)", xaxis_title="원", height=400, margin=dict(l=200))
-    st.plotly_chart(fig, use_container_width=True)
+    # ── 유입 효율: CTR · CPC (W1 vs W2) ──
+    st.markdown("#### 소재별 CTR · CPC (W1 vs W2)")
+    cr_has_imp = cr_df[cr_df["노출"] > 0]
+    col_ctr, col_cpc = st.columns(2)
+
+    with col_ctr:
+        cr_pivot_ctr = cr_has_imp.pivot_table(index="소재(짧은이름)", columns="주차", values="CTR", aggfunc="mean").fillna(0)
+        cr_pivot_ctr = cr_pivot_ctr.sort_values("W2", ascending=True)
+        fig = go.Figure()
+        for w in ["W1", "W2"]:
+            if w in cr_pivot_ctr.columns:
+                fig.add_trace(go.Bar(
+                    name=w, y=cr_pivot_ctr.index, x=cr_pivot_ctr[w],
+                    orientation="h", marker_color=WEEK_COLORS[w],
+                    text=[f"{v:.1f}%" for v in cr_pivot_ctr[w]], textposition="outside",
+                ))
+        fig.update_layout(title="CTR (클릭률)", xaxis_title="%", barmode="group", height=450, margin=dict(l=200))
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col_cpc:
+        cr_pivot_cpc = cr_has_imp.pivot_table(index="소재(짧은이름)", columns="주차", values="CPC", aggfunc="mean").fillna(0)
+        cr_pivot_cpc = cr_pivot_cpc.sort_values("W2", ascending=True)
+        fig = go.Figure()
+        for w in ["W1", "W2"]:
+            if w in cr_pivot_cpc.columns:
+                fig.add_trace(go.Bar(
+                    name=w, y=cr_pivot_cpc.index, x=cr_pivot_cpc[w],
+                    orientation="h", marker_color=WEEK_COLORS[w],
+                    text=[f"{v:,.0f}원" for v in cr_pivot_cpc[w]], textposition="outside",
+                ))
+        fig.update_layout(title="CPC (클릭당 비용)", xaxis_title="원", barmode="group", height=450, margin=dict(l=200))
+        st.plotly_chart(fig, use_container_width=True)
+
+    # ── 구매 효율: ROAS · CPA(구매) (W1 vs W2) ──
+    st.markdown("#### 소재별 ROAS · CPA (W1 vs W2)")
+    cr_has_purchase = cr_df[cr_df["구매건"] > 0]
+    col_roas, col_cpa = st.columns(2)
+
+    with col_roas:
+        cr_pivot_roas = cr_has_purchase.pivot_table(index="소재(짧은이름)", columns="주차", values="ROAS", aggfunc="mean").fillna(0)
+        cr_pivot_roas = cr_pivot_roas.sort_values("W2", ascending=True)
+        fig = go.Figure()
+        for w in ["W1", "W2"]:
+            if w in cr_pivot_roas.columns:
+                fig.add_trace(go.Bar(
+                    name=w, y=cr_pivot_roas.index, x=cr_pivot_roas[w],
+                    orientation="h", marker_color=WEEK_COLORS[w],
+                    text=[f"{v:.0f}%" for v in cr_pivot_roas[w]], textposition="outside",
+                ))
+        fig.add_vline(x=100, line_dash="dash", line_color="red", annotation_text="손익분기")
+        fig.update_layout(title="ROAS (구매액 / 비용)", xaxis_title="%", barmode="group", height=450, margin=dict(l=200))
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col_cpa:
+        cr_pivot_cpa = cr_has_purchase.pivot_table(index="소재(짧은이름)", columns="주차", values="CPA(구매)", aggfunc="mean").fillna(0)
+        cr_pivot_cpa = cr_pivot_cpa.sort_values("W2", ascending=False)
+        fig = go.Figure()
+        for w in ["W1", "W2"]:
+            if w in cr_pivot_cpa.columns:
+                fig.add_trace(go.Bar(
+                    name=w, y=cr_pivot_cpa.index, x=cr_pivot_cpa[w],
+                    orientation="h", marker_color=WEEK_COLORS[w],
+                    text=[f"{v:,.0f}원" for v in cr_pivot_cpa[w]], textposition="outside",
+                ))
+        fig.update_layout(title="CPA (구매당 비용)", xaxis_title="원", barmode="group", height=450, margin=dict(l=200))
+        st.plotly_chart(fig, use_container_width=True)
+
+    # ── ARPPU · CPI 비교 ──
+    st.markdown("#### 소재별 ARPPU · CPI (W2)")
+    col_arppu, col_cpi = st.columns(2)
+
+    with col_arppu:
+        cr_w2_arppu = cr_w2[cr_w2["구매유저"] > 0].sort_values("ARPPU", ascending=True)
+        fig = go.Figure(data=[go.Bar(
+            y=cr_w2_arppu["소재(짧은이름)"], x=cr_w2_arppu["ARPPU"],
+            orientation="h", marker_color="#7262FD",
+            text=[f"{v:,.0f}원" for v in cr_w2_arppu["ARPPU"]], textposition="outside",
+        )])
+        fig.update_layout(title="ARPPU (구매유저 있는 소재만)", xaxis_title="원", height=400, margin=dict(l=200))
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col_cpi:
+        cr_w2_cpi = cr_w2[cr_w2["설치"] > 0].sort_values("CPI", ascending=True)
+        fig = go.Figure(data=[go.Bar(
+            y=cr_w2_cpi["소재(짧은이름)"], x=cr_w2_cpi["CPI"],
+            orientation="h", marker_color="#78D3F8",
+            text=[f"{v:,.0f}원" if pd.notna(v) else "-" for v in cr_w2_cpi["CPI"]], textposition="outside",
+        )])
+        fig.update_layout(title="CPI (설치당 비용)", xaxis_title="원", height=400, margin=dict(l=200))
+        st.plotly_chart(fig, use_container_width=True)
 
     # ── 소재별 WoW 상세 테이블 ──
     st.markdown("#### 소재별 W1 → W2 상세 데이터")
@@ -696,22 +785,22 @@ with tab_cr:
         wow_rows.append({
             "소재명": name,
             "유형": w1_data["소재유형"],
-            "W1 클릭": f"{int(w1_data['클릭']):,}",
-            "W2 클릭": f"{int(w2_data['클릭']):,}",
-            "클릭 WoW": wow_click,
-            "W1 설치": int(w1_data["설치"]),
+            "W2 노출": f"{int(w2_data['노출']):,}" if w2_data["노출"] > 0 else "-",
+            "W2 클릭": f"{int(w2_data['클릭']):,}" if w2_data["클릭"] > 0 else "-",
+            "W2 비용": f"{w2_data['비용']:,.0f}원" if w2_data["비용"] > 0 else "-",
+            "W2 CTR": f"{w2_data['CTR']:.1f}%" if pd.notna(w2_data["CTR"]) else "-",
+            "W2 CPC": f"{w2_data['CPC']:,.0f}원" if pd.notna(w2_data["CPC"]) else "-",
             "W2 설치": int(w2_data["설치"]),
-            "W1 가입": int(w1_data["가입"]),
+            "W2 CPI": f"{w2_data['CPI']:,.0f}원" if pd.notna(w2_data["CPI"]) else "-",
             "W2 가입": int(w2_data["가입"]),
-            "W1 구매건": int(w1_data["구매건"]),
+            "W2 CPA(가입)": f"{w2_data['CPA(가입)']:,.0f}원" if pd.notna(w2_data["CPA(가입)"]) else "-",
             "W2 구매건": int(w2_data["구매건"]),
-            "W2 CVR(가입)": f"{w2_data['CVR(가입)']:.2f}%" if pd.notna(w2_data["CVR(가입)"]) else "-",
-            "W2 CVR(구매)": f"{w2_data['CVR(구매)']:.2f}%" if pd.notna(w2_data["CVR(구매)"]) else "-",
-            "W1 구매액": f"{w1_data['구매액']:,.0f}원",
+            "W2 CPA(구매)": f"{w2_data['CPA(구매)']:,.0f}원" if pd.notna(w2_data["CPA(구매)"]) else "-",
             "W2 구매액": f"{w2_data['구매액']:,.0f}원",
-            "구매액 WoW": wow_rev,
-            "W2 첫구매": int(w2_data["첫구매"]),
+            "W2 ROAS": f"{w2_data['ROAS']:.1f}%" if pd.notna(w2_data["ROAS"]) else "-",
             "W2 ARPPU": f"{w2_data['ARPPU']:,.0f}원" if pd.notna(w2_data["ARPPU"]) else "-",
+            "W2 첫구매": int(w2_data["첫구매"]),
+            "구매액 WoW": wow_rev,
         })
     wow_cr_df = pd.DataFrame(wow_rows)
     st.dataframe(wow_cr_df, use_container_width=True, hide_index=True, height=400)
