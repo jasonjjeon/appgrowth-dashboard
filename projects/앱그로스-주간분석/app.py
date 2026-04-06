@@ -83,8 +83,9 @@ CREATIVE_RAW = {
         "260403_img_ston-tshirt",
     ],
     "주차": ["W1", "W2"] * 9,
-    "가입": [174, 155, 91, 121, 54, 3, 29, 23, 3, 3, 0, 6, 0, 2, 0, 2, 0, 1],
-    "앱설치": [721, 652, 629, 516, 93, 0, 138, 125, 26, 26, 0, 65, 0, 7, 0, 60, 0, 40],
+    "클릭": [7_758, 7_978, 4_353, 5_173, 3_289, 1_718, 1_029, 1_113, 396, 396, 0, 477, 0, 153, 0, 709, 0, 280],
+    "설치": [721, 652, 629, 516, 93, 0, 138, 125, 26, 26, 0, 65, 0, 7, 0, 117, 0, 40],
+    "가입": [174, 155, 91, 121, 54, 3, 29, 23, 3, 3, 0, 6, 0, 2, 0, 18, 0, 1],
     "구매건": [40, 59, 23, 24, 24, 11, 2, 6, 3, 2, 0, 3, 0, 2, 0, 0, 0, 0],
     "구매유저": [35, 44, 23, 22, 19, 9, 2, 5, 2, 2, 0, 2, 0, 2, 0, 0, 0, 0],
     "구매액": [
@@ -98,9 +99,17 @@ CREATIVE_RAW = {
         0, 0,
         0, 0,
     ],
+    "첫구매": [30, 35, 22, 19, 14, 4, 2, 5, 0, 0, 0, 2, 0, 2, 0, 0, 0, 0],
 }
 
 cr_df = pd.DataFrame(CREATIVE_RAW)
+
+# 소재 단위 산출 지표
+cr_df["CVR(가입)"] = cr_df["가입"] / cr_df["클릭"].replace(0, float("nan")) * 100
+cr_df["CVR(구매)"] = cr_df["구매건"] / cr_df["클릭"].replace(0, float("nan")) * 100
+cr_df["가입→구매 CVR"] = cr_df["구매건"] / cr_df["가입"].replace(0, float("nan")) * 100
+cr_df["ARPPU"] = cr_df["구매액"] / cr_df["구매유저"].replace(0, float("nan"))
+
 # 소재 유형 자동 분류
 def classify_creative(name):
     if "carousel" in name:
@@ -487,38 +496,47 @@ with tab5:
 # ──────────────── 메타 소재별 탭 ────────────────
 with tab_cr:
     st.subheader("🎨 메타(Facebook) 광고소재별 성과")
-    st.caption("Airbridge 전환 데이터 기준 | 노출·클릭·비용은 소재 단위 미적재")
+    st.caption("Airbridge 어트리뷰션 기준 | 클릭·설치·가입·구매·첫구매 포함")
 
-    # W2 기준 소재별 구매액 순위
     cr_w2 = cr_df[cr_df["주차"] == "W2"].copy()
     cr_w1 = cr_df[cr_df["주차"] == "W1"].copy()
 
-    # ── KPI 카드: 소재 수, 총 구매액, 상위 소재 점유율 ──
+    # ── KPI 카드 ──
     total_rev_w2 = cr_w2["구매액"].sum()
+    total_rev_w1 = cr_w1["구매액"].sum()
     top_rev_w2 = cr_w2.sort_values("구매액", ascending=False).iloc[0]
     top_share = top_rev_w2["구매액"] / total_rev_w2 * 100 if total_rev_w2 > 0 else 0
     active_count = len(cr_w2[cr_w2["구매건"] > 0])
+    total_clicks_w2 = cr_w2["클릭"].sum()
+    total_clicks_w1 = cr_w1["클릭"].sum()
 
-    kc1, kc2, kc3, kc4 = st.columns(4)
+    kc1, kc2, kc3, kc4, kc5, kc6 = st.columns(6)
     with kc1:
-        st.metric("활성 소재 수 (W2)", f"{active_count}개")
+        st.metric("활성 소재 (W2)", f"{active_count}개")
     with kc2:
-        st.metric("총 구매액 (W2)", f"{total_rev_w2:,.0f}원")
+        st.metric("총 클릭 (W2)", f"{total_clicks_w2:,.0f}",
+                  delta=f"{wow_pct(total_clicks_w1, total_clicks_w2):+.1f}%")
     with kc3:
-        st.metric("1위 소재", top_rev_w2["소재(짧은이름)"][:18])
+        st.metric("총 구매액 (W2)", f"{total_rev_w2:,.0f}원",
+                  delta=f"{wow_pct(total_rev_w1, total_rev_w2):+.1f}%")
     with kc4:
+        st.metric("1위 소재", top_rev_w2["소재(짧은이름)"][:18])
+    with kc5:
         st.metric("1위 점유율", f"{top_share:.1f}%")
+    with kc6:
+        total_first_w2 = cr_w2["첫구매"].sum()
+        total_first_w1 = cr_w1["첫구매"].sum()
+        st.metric("첫구매 (W2)", f"{total_first_w2}건",
+                  delta=f"{wow_pct(total_first_w1, total_first_w2):+.1f}%" if total_first_w1 > 0 else "N/A")
 
     st.markdown("---")
 
-    # ── 차트 1: 소재별 구매액 W1 vs W2 ──
+    # ── 차트 1: 소재별 구매액 & 클릭 ──
     col1, col2 = st.columns(2)
 
     with col1:
-        # 소재별 구매액 비교 (W1 vs W2)
         cr_pivot = cr_df.pivot_table(index="소재(짧은이름)", columns="주차", values="구매액", aggfunc="sum").fillna(0)
         cr_pivot = cr_pivot.sort_values("W2", ascending=True)
-
         fig = go.Figure()
         fig.add_trace(go.Bar(
             name="W1", y=cr_pivot.index, x=cr_pivot.get("W1", 0),
@@ -532,16 +550,11 @@ with tab_cr:
             text=[f"{v:,.0f}원" for v in cr_pivot.get("W2", [0] * len(cr_pivot))],
             textposition="outside",
         ))
-        fig.update_layout(
-            title="소재별 구매액 (W1 vs W2)",
-            xaxis_title="구매액 (원)",
-            barmode="group", height=500,
-            margin=dict(l=200),
-        )
+        fig.update_layout(title="소재별 구매액 (W1 vs W2)", xaxis_title="구매액 (원)",
+                          barmode="group", height=500, margin=dict(l=200))
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        # W2 구매액 점유율 파이 차트
         cr_w2_sorted = cr_w2[cr_w2["구매액"] > 0].sort_values("구매액", ascending=False)
         fig = go.Figure(data=[go.Pie(
             labels=cr_w2_sorted["소재(짧은이름)"],
@@ -553,57 +566,95 @@ with tab_cr:
         fig.update_layout(title="W2 소재별 구매액 점유율", height=500)
         st.plotly_chart(fig, use_container_width=True)
 
-    # ── 차트 2: 소재별 구매건·구매유저·가입 비교 ──
-    st.markdown("#### 소재별 전환 지표 비교 (W2)")
+    # ── 차트 2: 전환 퍼널 (클릭→설치→가입→구매) ──
+    st.markdown("#### 소재별 전환 퍼널 (W2)")
     col3, col4 = st.columns(2)
 
     with col3:
-        cr_w2_chart = cr_w2.sort_values("구매건", ascending=True)
+        # 상위 3개 소재 퍼널 비교
+        top3 = cr_w2.sort_values("구매액", ascending=False).head(3)
         fig = go.Figure()
-        fig.add_trace(go.Bar(
-            name="구매건", y=cr_w2_chart["소재(짧은이름)"], x=cr_w2_chart["구매건"],
-            orientation="h", marker_color="#FF6B6B",
-            text=[f"{int(v)}건" for v in cr_w2_chart["구매건"]], textposition="outside",
-        ))
-        fig.add_trace(go.Bar(
-            name="구매유저", y=cr_w2_chart["소재(짧은이름)"], x=cr_w2_chart["구매유저"],
-            orientation="h", marker_color="#5B8FF9",
-            text=[f"{int(v)}명" for v in cr_w2_chart["구매유저"]], textposition="outside",
-        ))
-        fig.update_layout(title="소재별 구매건 & 구매유저 (W2)", barmode="group", height=450, margin=dict(l=200))
+        funnel_colors = ["#FF6B6B", "#5B8FF9", "#61DDAA"]
+        for i, (_, row) in enumerate(top3.iterrows()):
+            fig.add_trace(go.Funnel(
+                name=row["소재(짧은이름)"][:25],
+                y=["클릭", "설치", "가입", "구매"],
+                x=[int(row["클릭"]), int(row["설치"]), int(row["가입"]), int(row["구매건"])],
+                marker_color=funnel_colors[i],
+                textinfo="value+percent previous",
+            ))
+        fig.update_layout(title="상위 3개 소재 전환 퍼널 (W2)", height=450)
         st.plotly_chart(fig, use_container_width=True)
 
     with col4:
-        cr_w2_chart2 = cr_w2.sort_values("가입", ascending=True)
+        # 소재별 CVR 비교
+        cr_w2_cvr = cr_w2[cr_w2["클릭"] > 0].sort_values("CVR(구매)", ascending=True)
         fig = go.Figure()
         fig.add_trace(go.Bar(
-            name="가입", y=cr_w2_chart2["소재(짧은이름)"], x=cr_w2_chart2["가입"],
+            name="CVR(가입)", y=cr_w2_cvr["소재(짧은이름)"],
+            x=cr_w2_cvr["CVR(가입)"].fillna(0),
             orientation="h", marker_color="#61DDAA",
-            text=[f"{int(v)}명" for v in cr_w2_chart2["가입"]], textposition="outside",
+            text=[f"{v:.2f}%" if pd.notna(v) else "-" for v in cr_w2_cvr["CVR(가입)"]],
+            textposition="outside",
         ))
         fig.add_trace(go.Bar(
-            name="앱설치", y=cr_w2_chart2["소재(짧은이름)"], x=cr_w2_chart2["앱설치"],
-            orientation="h", marker_color="#F6BD16",
-            text=[f"{int(v)}건" for v in cr_w2_chart2["앱설치"]], textposition="outside",
+            name="CVR(구매)", y=cr_w2_cvr["소재(짧은이름)"],
+            x=cr_w2_cvr["CVR(구매)"].fillna(0),
+            orientation="h", marker_color="#FF6B6B",
+            text=[f"{v:.2f}%" if pd.notna(v) else "-" for v in cr_w2_cvr["CVR(구매)"]],
+            textposition="outside",
         ))
-        fig.update_layout(title="소재별 가입 & 앱설치 (W2)", barmode="group", height=450, margin=dict(l=200))
+        fig.update_layout(title="소재별 CVR 비교 (W2)", barmode="group", height=450, margin=dict(l=200))
         st.plotly_chart(fig, use_container_width=True)
 
-    # ── 차트 3: 소재유형별 비교 ──
+    # ── 차트 3: 클릭·설치·구매·첫구매 비교 ──
+    st.markdown("#### 소재별 유입 & 전환 (W2)")
+    col5, col6 = st.columns(2)
+
+    with col5:
+        cr_w2_chart = cr_w2.sort_values("클릭", ascending=True)
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            name="클릭", y=cr_w2_chart["소재(짧은이름)"], x=cr_w2_chart["클릭"],
+            orientation="h", marker_color="#F6BD16",
+            text=[f"{int(v):,}" for v in cr_w2_chart["클릭"]], textposition="outside",
+        ))
+        fig.add_trace(go.Bar(
+            name="설치", y=cr_w2_chart["소재(짧은이름)"], x=cr_w2_chart["설치"],
+            orientation="h", marker_color="#5B8FF9",
+            text=[f"{int(v):,}" for v in cr_w2_chart["설치"]], textposition="outside",
+        ))
+        fig.update_layout(title="소재별 클릭 & 설치 (W2)", barmode="group", height=450, margin=dict(l=200))
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col6:
+        cr_w2_chart2 = cr_w2.sort_values("구매건", ascending=True)
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            name="구매건", y=cr_w2_chart2["소재(짧은이름)"], x=cr_w2_chart2["구매건"],
+            orientation="h", marker_color="#FF6B6B",
+            text=[f"{int(v)}건" for v in cr_w2_chart2["구매건"]], textposition="outside",
+        ))
+        fig.add_trace(go.Bar(
+            name="첫구매", y=cr_w2_chart2["소재(짧은이름)"], x=cr_w2_chart2["첫구매"],
+            orientation="h", marker_color="#7262FD",
+            text=[f"{int(v)}건" for v in cr_w2_chart2["첫구매"]], textposition="outside",
+        ))
+        fig.update_layout(title="소재별 구매건 & 첫구매 (W2)", barmode="group", height=450, margin=dict(l=200))
+        st.plotly_chart(fig, use_container_width=True)
+
+    # ── 차트 4: 소재유형별 비교 ──
     st.markdown("#### 소재유형별 성과 비교 (W2)")
     type_summary = cr_w2.groupby("소재유형").agg(
-        구매건=("구매건", "sum"),
-        구매액=("구매액", "sum"),
-        가입=("가입", "sum"),
-        앱설치=("앱설치", "sum"),
-        구매유저=("구매유저", "sum"),
+        클릭=("클릭", "sum"), 설치=("설치", "sum"), 가입=("가입", "sum"),
+        구매건=("구매건", "sum"), 구매액=("구매액", "sum"),
+        구매유저=("구매유저", "sum"), 첫구매=("첫구매", "sum"),
     ).reset_index()
 
-    col5, col6 = st.columns(2)
-    with col5:
+    col7, col8 = st.columns(2)
+    with col7:
         fig = go.Figure(data=[go.Bar(
-            x=type_summary["소재유형"],
-            y=type_summary["구매액"],
+            x=type_summary["소재유형"], y=type_summary["구매액"],
             marker_color=["#FF6B6B", "#5B8FF9"],
             text=[f"{v:,.0f}원" for v in type_summary["구매액"]],
             textposition="outside",
@@ -611,18 +662,29 @@ with tab_cr:
         fig.update_layout(title="소재유형별 구매액 (W2)", yaxis_title="원", height=350)
         st.plotly_chart(fig, use_container_width=True)
 
-    with col6:
-        fig = go.Figure(data=[go.Bar(
-            x=type_summary["소재유형"],
-            y=type_summary["구매건"],
-            marker_color=["#FF6B6B", "#5B8FF9"],
-            text=[f"{int(v)}건" for v in type_summary["구매건"]],
-            textposition="outside",
-        )])
-        fig.update_layout(title="소재유형별 구매건 (W2)", yaxis_title="건", height=350)
+    with col8:
+        fig = go.Figure()
+        fig.add_trace(go.Bar(name="클릭", x=type_summary["소재유형"], y=type_summary["클릭"],
+                             marker_color="#F6BD16", text=[f"{int(v):,}" for v in type_summary["클릭"]], textposition="outside"))
+        fig.add_trace(go.Bar(name="설치", x=type_summary["소재유형"], y=type_summary["설치"],
+                             marker_color="#5B8FF9", text=[f"{int(v):,}" for v in type_summary["설치"]], textposition="outside"))
+        fig.add_trace(go.Bar(name="구매건", x=type_summary["소재유형"], y=type_summary["구매건"],
+                             marker_color="#FF6B6B", text=[f"{int(v)}건" for v in type_summary["구매건"]], textposition="outside"))
+        fig.update_layout(title="소재유형별 클릭·설치·구매 (W2)", barmode="group", height=350)
         st.plotly_chart(fig, use_container_width=True)
 
-    # ── 소재별 WoW 변화 테이블 ──
+    # ── ARPPU 비교 ──
+    st.markdown("#### 소재별 ARPPU (W2)")
+    cr_w2_arppu = cr_w2[cr_w2["구매유저"] > 0].sort_values("ARPPU", ascending=True)
+    fig = go.Figure(data=[go.Bar(
+        y=cr_w2_arppu["소재(짧은이름)"], x=cr_w2_arppu["ARPPU"],
+        orientation="h", marker_color="#7262FD",
+        text=[f"{v:,.0f}원" for v in cr_w2_arppu["ARPPU"]], textposition="outside",
+    )])
+    fig.update_layout(title="소재별 ARPPU — 구매유저 있는 소재만 (W2)", xaxis_title="원", height=400, margin=dict(l=200))
+    st.plotly_chart(fig, use_container_width=True)
+
+    # ── 소재별 WoW 상세 테이블 ──
     st.markdown("#### 소재별 W1 → W2 상세 데이터")
     creative_names = cr_df["소재명"].unique()
     wow_rows = []
@@ -630,25 +692,29 @@ with tab_cr:
         w1_data = cr_df[(cr_df["소재명"] == name) & (cr_df["주차"] == "W1")].iloc[0]
         w2_data = cr_df[(cr_df["소재명"] == name) & (cr_df["주차"] == "W2")].iloc[0]
         wow_rev = f"{wow_pct(w1_data['구매액'], w2_data['구매액']):+.1f}%" if w1_data["구매액"] > 0 else ("신규" if w2_data["구매액"] > 0 else "-")
+        wow_click = f"{wow_pct(w1_data['클릭'], w2_data['클릭']):+.1f}%" if w1_data["클릭"] > 0 else ("신규" if w2_data["클릭"] > 0 else "-")
         wow_rows.append({
             "소재명": name,
             "유형": w1_data["소재유형"],
+            "W1 클릭": f"{int(w1_data['클릭']):,}",
+            "W2 클릭": f"{int(w2_data['클릭']):,}",
+            "클릭 WoW": wow_click,
+            "W1 설치": int(w1_data["설치"]),
+            "W2 설치": int(w2_data["설치"]),
             "W1 가입": int(w1_data["가입"]),
             "W2 가입": int(w2_data["가입"]),
-            "W1 앱설치": int(w1_data["앱설치"]),
-            "W2 앱설치": int(w2_data["앱설치"]),
             "W1 구매건": int(w1_data["구매건"]),
             "W2 구매건": int(w2_data["구매건"]),
-            "W1 구매유저": int(w1_data["구매유저"]),
-            "W2 구매유저": int(w2_data["구매유저"]),
+            "W2 CVR(가입)": f"{w2_data['CVR(가입)']:.2f}%" if pd.notna(w2_data["CVR(가입)"]) else "-",
+            "W2 CVR(구매)": f"{w2_data['CVR(구매)']:.2f}%" if pd.notna(w2_data["CVR(구매)"]) else "-",
             "W1 구매액": f"{w1_data['구매액']:,.0f}원",
             "W2 구매액": f"{w2_data['구매액']:,.0f}원",
             "구매액 WoW": wow_rev,
+            "W2 첫구매": int(w2_data["첫구매"]),
+            "W2 ARPPU": f"{w2_data['ARPPU']:,.0f}원" if pd.notna(w2_data["ARPPU"]) else "-",
         })
     wow_cr_df = pd.DataFrame(wow_rows)
     st.dataframe(wow_cr_df, use_container_width=True, hide_index=True, height=400)
-
-    st.info("💡 노출·클릭·비용 데이터는 현재 광고그룹(ad_group) 단위까지만 적재되어 있어 소재 단위 CTR·CPC·ROAS·CPA는 산출할 수 없습니다.")
 
 
 # ──────────────── 채널 비교 탭 ────────────────
