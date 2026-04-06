@@ -7,12 +7,12 @@ from plotly.subplots import make_subplots
 # 페이지 설정
 # ──────────────────────────────────────────────
 st.set_page_config(
-    page_title="카카오 주간 마케팅 분석",
+    page_title="PBTD 카카오모먼트 주간 분석",
     page_icon="📊",
     layout="wide",
 )
 
-st.title("📊 카카오 주간 마케팅 분석")
+st.title("📊 PBTD 카카오모먼트 주간 분석")
 st.caption("W1 (3/23~3/29) vs W2 (3/30~4/5) | Cost Payback = Cost Channel ÷ 1.763")
 
 # ──────────────────────────────────────────────
@@ -141,6 +141,9 @@ CAMPAIGNS = ["bizboard-retarget", "bizboard-ua", "display-retarget"]
 COLORS = {"bizboard-retarget": "#FAE100", "bizboard-ua": "#3C1E1E", "display-retarget": "#FF6B35"}
 WEEK_COLORS = {"W1": "#5B8FF9", "W2": "#FF6B6B"}
 
+# 차트 상단 텍스트 잘림 방지를 위한 기본 레이아웃
+CHART_MARGIN = dict(t=50, b=40, l=10, r=10)
+
 # ──────────────────────────────────────────────
 # 유틸리티
 # ──────────────────────────────────────────────
@@ -159,6 +162,29 @@ def safe_pct_change(v1, v2):
     if v1 == 0:
         return None
     return (v2 - v1) / v1 * 100
+
+
+def apply_chart_margin(fig, height=400):
+    """모든 차트에 상단 여백을 적용하여 텍스트 잘림 방지"""
+    fig.update_layout(
+        margin=CHART_MARGIN,
+        height=height,
+    )
+    # y축이 있는 세로 막대 차트: 상단 20% 여유
+    if fig.data and hasattr(fig.data[0], "orientation") and fig.data[0].orientation == "h":
+        fig.update_xaxes(rangemode="tozero", autorange=True)
+        fig.update_layout(margin=dict(t=50, b=40, l=200, r=60))
+    else:
+        fig.update_yaxes(rangemode="tozero")
+        # 최대값 기준 상단 여유 확보
+        all_y = []
+        for trace in fig.data:
+            if hasattr(trace, "y") and trace.y is not None:
+                all_y.extend([v for v in trace.y if v is not None and isinstance(v, (int, float))])
+        if all_y:
+            max_y = max(all_y)
+            fig.update_yaxes(range=[0, max_y * 1.2])
+    return fig
 
 
 # ──────────────────────────────────────────────
@@ -214,6 +240,7 @@ with tab1:
                 textposition="outside",
             ))
         fig.update_layout(title="CTR (클릭률)", yaxis_title="%", barmode="group", height=400)
+        apply_chart_margin(fig)
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
@@ -227,6 +254,7 @@ with tab1:
                 textposition="outside",
             ))
         fig.update_layout(title="CPC (클릭당 비용)", yaxis_title="원", barmode="group", height=400)
+        apply_chart_margin(fig)
         st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("#### 노출 & 클릭 추이")
@@ -242,6 +270,7 @@ with tab1:
                 textposition="outside",
             ))
         fig.update_layout(title="Impressions (노출수)", yaxis_title="회", barmode="group", height=400)
+        apply_chart_margin(fig)
         st.plotly_chart(fig, use_container_width=True)
 
     with col4:
@@ -255,6 +284,7 @@ with tab1:
                 textposition="outside",
             ))
         fig.update_layout(title="Clicks (클릭수)", yaxis_title="회", barmode="group", height=400)
+        apply_chart_margin(fig)
         st.plotly_chart(fig, use_container_width=True)
 
 # ──────────────── 가입 탭 ────────────────
@@ -274,6 +304,7 @@ with tab2:
                 textposition="outside",
             ))
         fig.update_layout(title="가입 CVR (회원가입 / Clicks)", yaxis_title="%", barmode="group", height=400)
+        apply_chart_margin(fig)
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
@@ -287,6 +318,7 @@ with tab2:
                 textposition="outside",
             ))
         fig.update_layout(title="가입 CPA (Cost Payback / 회원가입)", yaxis_title="원", barmode="group", height=400)
+        apply_chart_margin(fig)
         st.plotly_chart(fig, use_container_width=True)
 
     st.info("💡 retarget 캠페인은 기존 유저 대상이라 가입 수가 극소수입니다. **ua 캠페인 기준**으로 보는 것이 적절합니다.")
@@ -323,6 +355,7 @@ with tab3:
         ))
         fig.update_layout(title="가입→구매 CVR 추이", yaxis_title="%", height=400,
                          yaxis_range=[0, max(ua_df["가입→구매 CVR"]) * 1.3])
+        apply_chart_margin(fig)
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
@@ -338,6 +371,7 @@ with tab3:
             textposition="outside",
         ))
         fig.update_layout(title="회원가입 vs 구매완료", yaxis_title="건", barmode="group", height=400)
+        apply_chart_margin(fig)
         st.plotly_chart(fig, use_container_width=True)
 
 # ──────────────── 구매 탭 ────────────────
@@ -357,6 +391,7 @@ with tab4:
                 textposition="outside",
             ))
         fig.update_layout(title="구매 CVR (구매완료 / Clicks)", yaxis_title="%", barmode="group", height=400)
+        apply_chart_margin(fig)
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
@@ -370,6 +405,7 @@ with tab4:
                 textposition="outside",
             ))
         fig.update_layout(title="구매 CPA (Cost Payback / 구매완료)", yaxis_title="원", barmode="group", height=400)
+        apply_chart_margin(fig)
         st.plotly_chart(fig, use_container_width=True)
 
     col3, col4 = st.columns(2)
@@ -386,6 +422,7 @@ with tab4:
             ))
         fig.add_hline(y=100, line_dash="dash", line_color="red", annotation_text="손익분기 100%")
         fig.update_layout(title="ROAS (구매액 / Cost Payback)", yaxis_title="%", barmode="group", height=400)
+        apply_chart_margin(fig)
         st.plotly_chart(fig, use_container_width=True)
 
     with col4:
@@ -399,6 +436,7 @@ with tab4:
                 textposition="outside",
             ))
         fig.update_layout(title="ARPPU (구매액 / 구매유저수)", yaxis_title="원", barmode="group", height=400)
+        apply_chart_margin(fig)
         st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("#### 구매액 vs Cost (Payback)")
@@ -417,6 +455,7 @@ with tab4:
     fig.update_layout(title="캠페인별 구매액(막대) vs Cost Payback(점선)", height=450, barmode="group")
     fig.update_yaxes(title_text="구매액 (원)", secondary_y=False)
     fig.update_yaxes(title_text="Cost Payback (원)", secondary_y=True)
+    fig.update_layout(margin=CHART_MARGIN)
     st.plotly_chart(fig, use_container_width=True)
 
 # ──────────────── 광고그룹별 성과 탭 ────────────────
@@ -449,6 +488,7 @@ with tab5:
         fig.add_vline(x=100, line_dash="dash", line_color="red", annotation_text="손익분기")
         fig.update_layout(barmode="group", height=max(400, len(adgroups) * 45), xaxis_title="ROAS %",
                          margin=dict(l=200))
+        apply_chart_margin(fig)
         st.plotly_chart(fig, use_container_width=True)
 
         # 구매 CPA 비교 차트
@@ -466,7 +506,8 @@ with tab5:
                 ))
             fig.update_layout(barmode="group", height=max(400, len(adgroups) * 40),
                              xaxis_title="원", margin=dict(l=200))
-            st.plotly_chart(fig, use_container_width=True)
+            apply_chart_margin(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
         with col2:
             st.markdown("#### 광고그룹별 구매 CVR")
@@ -481,7 +522,8 @@ with tab5:
                 ))
             fig.update_layout(barmode="group", height=max(400, len(adgroups) * 40),
                              xaxis_title="%", margin=dict(l=200))
-            st.plotly_chart(fig, use_container_width=True)
+            apply_chart_margin(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
     elif metric_option == "유입 (CTR, CPC)":
         col1, col2 = st.columns(2)
@@ -498,7 +540,8 @@ with tab5:
                 ))
             fig.update_layout(barmode="group", height=max(400, len(adgroups) * 40),
                              xaxis_title="%", margin=dict(l=200))
-            st.plotly_chart(fig, use_container_width=True)
+            apply_chart_margin(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
         with col2:
             st.markdown("#### 광고그룹별 CPC")
@@ -513,7 +556,8 @@ with tab5:
                 ))
             fig.update_layout(barmode="group", height=max(400, len(adgroups) * 40),
                              xaxis_title="원", margin=dict(l=200))
-            st.plotly_chart(fig, use_container_width=True)
+            apply_chart_margin(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
     else:  # 비용 & 구매액
         col1, col2 = st.columns(2)
@@ -530,7 +574,8 @@ with tab5:
                 ))
             fig.update_layout(barmode="group", height=max(400, len(adgroups) * 40),
                              xaxis_title="원", margin=dict(l=200))
-            st.plotly_chart(fig, use_container_width=True)
+            apply_chart_margin(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
         with col2:
             st.markdown("#### 광고그룹별 구매액")
@@ -545,7 +590,8 @@ with tab5:
                 ))
             fig.update_layout(barmode="group", height=max(400, len(adgroups) * 40),
                              xaxis_title="원", margin=dict(l=200))
-            st.plotly_chart(fig, use_container_width=True)
+            apply_chart_margin(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
     # 광고그룹별 상세 데이터 테이블
     st.markdown("---")
