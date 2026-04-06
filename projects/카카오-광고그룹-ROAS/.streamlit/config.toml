@@ -1,0 +1,5 @@
+[bind]
+name = "카카오 광고그룹 ROAS 대시보드"
+
+[server]
+headless = true
