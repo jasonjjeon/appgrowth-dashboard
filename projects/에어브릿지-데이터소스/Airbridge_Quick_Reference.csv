@@ -1,0 +1,10 @@
+데이터소스ID,데이터소스명,데이터베이스,테이블명,설명,주요_컬럼,갱신주기,사용빈도,우선순위,추천용도
+7,DATA_DB,MySQL,marketing_cost,채널별 일별 광고비/성과,report_date|channel|campaign|ad_group|impressions|clicks|cost|revenue|roas,매일,매우높음,⭐⭐⭐,채널별 ROAS 분석
+7,DATA_DB,MySQL,daily_products_cvr,상품별 일별 노출/클릭/전환율,date|product_id|impressions|clicks|orders|cvr,매일,높음,⭐⭐,상품별 전환율 추이
+7,DATA_DB,MySQL,promotion_result,기획전별 성과,page_name|unique_landing|total_conversions|total_sales|gmv_per_view,매일,중간,⭐⭐,기획전 성과 분석
+8,BigQuery,BigQuery,airbridge_raw.events,통합 이벤트 (app+web),channel|campaign|ad_group|event_name|product_id|total_revenue|user_id,실시간,높음,⭐⭐,캠페인 어트리뷰션 분석
+8,BigQuery,BigQuery,airbridge_backfill.app_events_raw,앱 이벤트 원본 데이터,channel|campaign|ad_group|event_name|product_id|total_revenue|device_type,실시간,중간,⭐⭐,앱 설치/가입 분석
+8,BigQuery,BigQuery,airbridge_backfill.web_events_raw,웹 이벤트 원본 데이터,channel|campaign|ad_group|event_name|product_id|total_revenue|device_type,실시간,중간,⭐⭐,웹 구매 어트리뷰션
+2,AWS Athena,Athena,airbridge_raw_parquet_0.airbridge_touchpoints_csv,터치포인트 일별 집계,channel|campaign|ad_group|impressions|clicks|cost|revenue|conversion_count,일일,낮음,⭐,터치포인트 분석
+1,Athler,MySQL,marketing_report,채널별 광고 성과 요약,channel|campaign|cost|impressions|clicks|revenue|roas,매시간,낮음,⭐,레거시 (DATA_DB 사용권장)
+1,Athler,MySQL,marketing_reportrow,채널/캠페인별 일일 성과,event_date|channel|campaign|ad_group|cost|impressions|clicks|revenue,매시간,낮음,⭐,레거시 (DATA_DB 사용권장)

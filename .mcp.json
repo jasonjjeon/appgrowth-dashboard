@@ -1,0 +1,29 @@
+{
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ]
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/jeon/workspace"
+      ]
+    },
+    "redash": {
+      "command": "node",
+      "args": [
+        "/Users/jeon/workspace/mcp/redash/index.mjs"
+      ],
+      "env": {
+        "REDASH_API_KEY": "jdfeLA7zhMRizlsTPz0TYF8f8Uy68P0aON3nyaBx",
+        "REDASH_URL": "http://52.79.76.239"
+      }
+    }
+  }
+}

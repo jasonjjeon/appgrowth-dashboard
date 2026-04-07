@@ -1,0 +1,10 @@
+{
+  "name": "bind-redash-mcp",
+  "version": "0.1.0",
+  "description": "Redash MCP server for BIND AI Pack - 리대시를 통한 데이터 조회",
+  "type": "module",
+  "main": "index.mjs",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
+}
