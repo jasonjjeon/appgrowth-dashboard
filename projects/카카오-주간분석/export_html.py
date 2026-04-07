@@ -122,9 +122,19 @@ adf["ARPPU"] = adf.apply(lambda r: r["구매액"] / r["구매유저 합계"] if 
 # ──────────────────────────────────────────────
 # 차트 헬퍼
 # ──────────────────────────────────────────────
+DARK_LAYOUT = dict(
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    font_color="#e0e0e0",
+    title_font_color="#ffffff",
+    legend_font_color="#e0e0e0",
+    xaxis=dict(gridcolor="#2d2f36", zerolinecolor="#2d2f36"),
+    yaxis=dict(gridcolor="#2d2f36", zerolinecolor="#2d2f36"),
+)
+
 def fig_html(fig, height=400):
     all_y = [v for t in fig.data for v in (t.y if hasattr(t, "y") and t.y is not None else []) if isinstance(v, (int, float))]
-    fig.update_layout(margin=MARGIN, height=height)
+    fig.update_layout(margin=MARGIN, height=height, **DARK_LAYOUT)
     if all_y:
         fig.update_yaxes(range=[0, max(all_y) * 1.2])
     return fig.to_html(full_html=False, include_plotlyjs=False)
@@ -132,7 +142,7 @@ def fig_html(fig, height=400):
 def fig_html_h(fig, height=400):
     """가로 막대용"""
     all_x = [v for t in fig.data for v in (t.x if hasattr(t, "x") and t.x is not None else []) if isinstance(v, (int, float))]
-    fig.update_layout(height=height)
+    fig.update_layout(height=height, **DARK_LAYOUT)
     if all_x:
         fig.update_xaxes(range=[0, max(all_x) * 1.25])
     return fig.to_html(full_html=False, include_plotlyjs=False)
@@ -269,7 +279,7 @@ for c in CAMPAIGNS:
     d = df[df["캠페인"] == c]
     fig.add_trace(go.Bar(name=f"{c} 구매액", x=[f"{c}<br>{w}" for w in d["주차"]], y=d["구매액"].values, marker_color=COLORS[c], opacity=0.8), secondary_y=False)
     fig.add_trace(go.Scatter(name=f"{c} 비용", x=[f"{c}<br>{w}" for w in d["주차"]], y=d["비용"].values, mode="markers+lines", marker=dict(size=10, color=COLORS[c]), line=dict(dash="dot")), secondary_y=True)
-fig.update_layout(title="캠페인별 구매액(막대) vs 비용(점선)", barmode="group", margin=MARGIN, height=450)
+fig.update_layout(title="캠페인별 구매액(막대) vs 비용(점선)", barmode="group", margin=MARGIN, height=450, **DARK_LAYOUT)
 fig.update_yaxes(title_text="구매액 (원)", secondary_y=False)
 fig.update_yaxes(title_text="비용 (원)", secondary_y=True)
 ch_rev_cost = fig.to_html(full_html=False, include_plotlyjs=False)
@@ -347,43 +357,44 @@ html = f"""<!DOCTYPE html>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <style>
 * {{ margin:0; padding:0; box-sizing:border-box; }}
-body {{ font-family:-apple-system,'Pretendard','Noto Sans KR',sans-serif; background:#f8f9fa; color:#191919; padding:24px; max-width:1400px; margin:0 auto; }}
-h1 {{ font-size:28px; margin-bottom:4px; }}
-.subtitle {{ color:#6b7280; font-size:14px; margin-bottom:24px; }}
+body {{ font-family:-apple-system,'Pretendard','Noto Sans KR',sans-serif; background:#0f1117; color:#e0e0e0; padding:24px; max-width:1400px; margin:0 auto; }}
+h1 {{ font-size:28px; margin-bottom:4px; color:#ffffff; }}
+h2 {{ color:#e0e0e0; }}
+.subtitle {{ color:#9ca3af; font-size:14px; margin-bottom:24px; }}
 .kpi-row {{ display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin-bottom:28px; }}
-.kpi {{ background:#fff; border-radius:12px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,.1); }}
-.kpi-label {{ font-size:12px; color:#6b7280; }}
-.kpi-value {{ font-size:20px; font-weight:700; margin:4px 0; }}
+.kpi {{ background:#1a1c23; border-radius:12px; padding:16px; border:1px solid #2d2f36; }}
+.kpi-label {{ font-size:12px; color:#9ca3af; }}
+.kpi-value {{ font-size:20px; font-weight:700; margin:4px 0; color:#ffffff; }}
 .kpi-delta {{ font-size:13px; font-weight:600; }}
 /* 탭 */
-.tabs {{ display:flex; gap:0; border-bottom:2px solid #e5e7eb; margin-bottom:24px; }}
+.tabs {{ display:flex; gap:0; border-bottom:2px solid #2d2f36; margin-bottom:24px; }}
 .tab {{ padding:10px 20px; cursor:pointer; font-size:14px; font-weight:600; color:#6b7280; border-bottom:3px solid transparent; margin-bottom:-2px; transition:all .2s; }}
-.tab:hover {{ color:#191919; }}
-.tab.active {{ color:#191919; border-bottom-color:#FAE100; }}
+.tab:hover {{ color:#e0e0e0; }}
+.tab.active {{ color:#ffffff; border-bottom-color:#FAE100; }}
 .tab-content {{ display:none; }}
 .tab-content.active {{ display:block; }}
 .section {{ margin-bottom:32px; }}
 .section h2 {{ font-size:18px; margin-bottom:16px; }}
 .chart-grid {{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }}
-.chart-box {{ background:#fff; border-radius:12px; padding:14px; box-shadow:0 1px 3px rgba(0,0,0,.1); }}
-.chart-full {{ background:#fff; border-radius:12px; padding:14px; box-shadow:0 1px 3px rgba(0,0,0,.1); margin-bottom:20px; }}
+.chart-box {{ background:#1a1c23; border-radius:12px; padding:14px; border:1px solid #2d2f36; }}
+.chart-full {{ background:#1a1c23; border-radius:12px; padding:14px; border:1px solid #2d2f36; margin-bottom:20px; }}
 .camp-section {{ margin-bottom:32px; }}
-.camp-section h3 {{ font-size:16px; margin-bottom:12px; padding:8px 12px; background:#1f2937; color:#fff; border-radius:8px; }}
-table {{ width:100%; border-collapse:collapse; font-size:12px; }}
-th {{ background:#1f2937; color:#fff; padding:8px 6px; text-align:right; white-space:nowrap; }}
+.camp-section h3 {{ font-size:16px; margin-bottom:12px; padding:8px 12px; background:#FAE100; color:#0f1117; border-radius:8px; }}
+table {{ width:100%; border-collapse:collapse; font-size:12px; color:#e0e0e0; }}
+th {{ background:#2d2f36; color:#ffffff; padding:8px 6px; text-align:right; white-space:nowrap; }}
 th:first-child,th:nth-child(2) {{ text-align:left; }}
-td {{ padding:6px; border-bottom:1px solid #e5e7eb; text-align:right; white-space:nowrap; }}
+td {{ padding:6px; border-bottom:1px solid #2d2f36; text-align:right; white-space:nowrap; }}
 td:first-child,td:nth-child(2) {{ text-align:left; font-weight:600; }}
-tr:hover {{ background:#f3f4f6; }}
-.note {{ background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px; font-size:13px; color:#1e40af; margin:12px 0; }}
+tr:hover {{ background:#262830; }}
+.note {{ background:#1e293b; border:1px solid #334155; border-radius:8px; padding:12px; font-size:13px; color:#93c5fd; margin:12px 0; }}
 .insight-grid {{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }}
-.insight-box {{ background:#fff; border-radius:12px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,.1); }}
-.insight-box h3 {{ font-size:15px; margin-bottom:10px; }}
+.insight-box {{ background:#1a1c23; border-radius:12px; padding:16px; border:1px solid #2d2f36; }}
+.insight-box h3 {{ font-size:15px; margin-bottom:10px; color:#ffffff; }}
 .insight-box ul {{ padding-left:18px; line-height:1.8; font-size:13px; }}
-.action-box {{ background:#fffbeb; border:1px solid #fbbf24; border-radius:12px; padding:16px; }}
-.action-box h3 {{ font-size:15px; margin-bottom:10px; }}
+.action-box {{ background:#1c1a0e; border:1px solid #854d0e; border-radius:12px; padding:16px; }}
+.action-box h3 {{ font-size:15px; margin-bottom:10px; color:#fbbf24; }}
 .action-box ol {{ padding-left:18px; line-height:2; font-size:13px; }}
-.footer {{ text-align:center; color:#9ca3af; font-size:11px; margin-top:40px; padding-top:16px; border-top:1px solid #e5e7eb; }}
+.footer {{ text-align:center; color:#6b7280; font-size:11px; margin-top:40px; padding-top:16px; border-top:1px solid #2d2f36; }}
 @media(max-width:768px){{ .kpi-row{{grid-template-columns:repeat(3,1fr);}} .chart-grid,.insight-grid{{grid-template-columns:1fr;}} }}
 </style>
 </head>
