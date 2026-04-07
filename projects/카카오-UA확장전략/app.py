@@ -19,10 +19,14 @@ st.markdown("""
     .metric-green h1 { color: #22c55e; }
     .metric-blue h1 { color: #3b82f6; }
     .metric-yellow h1 { color: #eab308; }
+    .metric-red h1 { color: #ef4444; }
     .tier-1 { border-left: 4px solid #22c55e; padding-left: 12px; margin-bottom: 8px; }
     .tier-2 { border-left: 4px solid #eab308; padding-left: 12px; margin-bottom: 8px; }
     .tier-3 { border-left: 4px solid #3b82f6; padding-left: 12px; margin-bottom: 8px; }
     .tier-new { border-left: 4px solid #a855f7; padding-left: 12px; margin-bottom: 8px; }
+    .gap-ok { background: #052e16; border: 1px solid #22c55e; border-radius: 8px; padding: 12px; margin: 6px 0; }
+    .gap-warn { background: #422006; border: 1px solid #eab308; border-radius: 8px; padding: 12px; margin: 6px 0; }
+    .gap-danger { background: #450a0a; border: 1px solid #ef4444; border-radius: 8px; padding: 12px; margin: 6px 0; }
     .section-header {
         background: linear-gradient(90deg, #1e3a5f, transparent);
         padding: 8px 16px; border-radius: 8px; margin: 1.5rem 0 1rem 0;
@@ -37,9 +41,198 @@ st.markdown("""
 st.title("UA 확장 전략")
 st.caption("기준 기간: 2026.03.09 ~ 04.06 | 보정계수 1.76 | 목표 보정 ROAS 400% (Raw 2.27)")
 
-tab_overview, tab_kakao, tab_meta, tab_google = st.tabs([
-    "전체 현황", "카카오 (UA + 앱설치)", "메타 (앱설치-구매)", "구글 (앱설치-구매)"
+tab_gap, tab_overview, tab_kakao, tab_meta, tab_google = st.tabs([
+    "목표 대비 갭 분석", "전체 현황", "카카오 (UA + 앱설치)", "메타 (앱설치-구매)", "구글 (앱설치-구매)"
 ])
+
+
+# ═══════════════════════════════════════════════════════════════
+# TAB 0: 목표 대비 갭 분석
+# ═══════════════════════════════════════════════════════════════
+with tab_gap:
+    st.markdown('<div class="section-header"><h3>목표 대비 갭 분석 (14주차: 3/31~4/6 기준)</h3></div>', unsafe_allow_html=True)
+    st.markdown("> **목표**: 보정 ROAS 400% (Raw 2.27) 유지하면서 UA 볼륨 확장 | 카카오 일예산 500만")
+
+    # ─── 1. 채널별 목표 대비 현황 ───
+    st.markdown("### 1. 채널별 효율 갭")
+
+    gap_df = pd.DataFrame({
+        "채널": ["카카오 RT (PBTD)", "카카오 PBTD UA", "카카오 기존 UA", "메타 전체", "구글 앱설치"],
+        "14주차 일평균 비용": ["419만", "38만", "521만", "146만", "53만"],
+        "목표 일예산": ["현행 유지", "500만", "현행 유지", "100만 (확장)", "80만 (확장)"],
+        "예산 갭": ["-", "-462만 (부족)", "-", "+46만 (초과)", "-27만 (부족)"],
+        "보정 ROAS": ["484%", "442%", "461%", "777%", "740%"],
+        "목표 ROAS": ["400%", "400%", "400%", "400%", "400%"],
+        "ROAS 갭": ["+84%p", "+42%p", "+61%p", "+377%p", "+340%p"],
+        "판정": ["달성", "달성 (볼륨 부족)", "달성", "초과 달성", "초과 달성"],
+    })
+    st.dataframe(gap_df, use_container_width=True, hide_index=True)
+
+    col_g1, col_g2 = st.columns(2)
+    with col_g1:
+        fig_gap_roas = go.Figure()
+        channels = ["카카오 RT", "카카오\nPBTD UA", "카카오\n기존 UA", "메타", "구글"]
+        actual_roas = [484, 442, 461, 777, 740]
+        colors_bar = ["#22c55e" if v >= 400 else "#ef4444" for v in actual_roas]
+        fig_gap_roas.add_trace(go.Bar(x=channels, y=actual_roas, marker_color=colors_bar,
+            text=[f"{v}%" for v in actual_roas], textposition="outside", name="실적"))
+        fig_gap_roas.add_hline(y=400, line_dash="dash", line_color="#ef4444", annotation_text="목표 400%")
+        fig_gap_roas.update_layout(title="보정 ROAS: 목표 vs 실적 (14주차)", height=380,
+            template="plotly_dark", yaxis_title="보정 ROAS (%)", showlegend=False)
+        st.plotly_chart(fig_gap_roas, use_container_width=True)
+
+    with col_g2:
+        fig_gap_budget = go.Figure()
+        target_b = [419, 500, 521, 100, 80]
+        actual_b = [419, 38, 521, 146, 53]
+        fig_gap_budget.add_trace(go.Bar(x=channels, y=target_b, name="목표 일예산", marker_color="#3b82f6", opacity=0.5))
+        fig_gap_budget.add_trace(go.Bar(x=channels, y=actual_b, name="실제 일예산", marker_color="#22c55e"))
+        fig_gap_budget.update_layout(title="일예산: 목표 vs 실적 (14주차, 만원)", height=380,
+            template="plotly_dark", barmode="group", yaxis_title="일예산 (만원)",
+            legend=dict(orientation="h", y=-0.15))
+        st.plotly_chart(fig_gap_budget, use_container_width=True)
+
+    # ─── 2. 광고그룹별 ROAS 갭 (비효율 진단) ───
+    st.markdown("### 2. 비효율 광고그룹 진단 (14주차, 보정 ROAS 400% 미달)")
+
+    underperform = pd.DataFrame({
+        "광고그룹명": [
+            "male3564-2601_br_cpcompany-promotion",
+            "male3564-2601_br_stoneisland-promotion",
+            "male4069-2601_ct_pgacutterbuck-promotion (BB)",
+            "male3564-2512_ct_now-promotion (display)",
+            "male3064-4890514-product",
+            "male3564-2604_ct_shortsleeve-promotion",
+            "male3064-4890509-product",
+            "male3064-4890562-product",
+        ],
+        "캠페인": ["RT (bizboard)", "RT (bizboard)", "RT (bizboard)", "RT (display)",
+                  "RT (bizboard)", "RT (bizboard)", "RT (bizboard)", "RT (bizboard)"],
+        "14주 비용": ["246만", "235만", "178만", "63만", "81만", "50만", "27만", "9만"],
+        "보정ROAS": ["387%", "399%", "369%", "380%", "325%", "304%", "199%", "54%"],
+        "목표 갭": ["-13%p", "-1%p", "-31%p", "-20%p", "-75%p", "-96%p", "-201%p", "-346%p"],
+        "원인": [
+            "CPC 494원 과다, 프리미엄 브랜드 UA 전환 낮음",
+            "CPC 548원 과다, 객단가는 높으나 전환율 저조",
+            "Bizboard CPC 304원 상승, Display 대비 비효율",
+            "Display CPC 370원 상승 (전주 대비), 전환 30건으로 감소",
+            "상품 단위 타겟, 전환수 50건이나 매출 낮음 (저단가 상품)",
+            "시즌 초기라 학습 부족, CPC 459원 과다",
+            "상품 단위, CPC 614원 과다 + 전환 13건 소량",
+            "상품 단위, CPC 682원 + 전환 1건 → 사실상 실패",
+        ],
+    })
+    st.dataframe(underperform, use_container_width=True, hide_index=True)
+
+    # ─── 비효율 시각화 ───
+    under_viz = pd.DataFrame({
+        "광고그룹": ["cpcompany", "stoneisland", "pgacutterbuck(BB)", "now(disp)",
+                    "상품4890514", "shortsleeve", "상품4890509", "상품4890562"],
+        "보정ROAS(%)": [387, 399, 369, 380, 325, 304, 199, 54],
+        "비용(만)": [246, 235, 178, 63, 81, 50, 27, 9],
+        "CPC": [494, 548, 304, 370, 360, 459, 614, 682],
+    })
+    fig_under = px.scatter(under_viz, x="CPC", y="보정ROAS(%)", size="비용(만)", text="광고그룹",
+        color_discrete_sequence=["#ef4444"], size_max=40)
+    fig_under.add_hline(y=400, line_dash="dash", line_color="#22c55e", annotation_text="목표 400%")
+    fig_under.add_vline(x=400, line_dash="dash", line_color="#eab308", annotation_text="CPC 경고선")
+    fig_under.update_traces(textposition="top center", textfont_size=10)
+    fig_under.update_layout(title="비효율 광고그룹: CPC vs ROAS (우하단이 위험)", height=400,
+        template="plotly_dark", xaxis_title="CPC (원)", yaxis_title="보정 ROAS (%)")
+    st.plotly_chart(fig_under, use_container_width=True)
+
+    # ─── 3. 금주 해결안 ───
+    st.markdown("### 3. 금주(4/7~4/13) 즉시 액션")
+
+    st.markdown('<div class="gap-danger">', unsafe_allow_html=True)
+    st.markdown("""
+    **즉시 중단/축소 (비용 절감 → UA 예산으로 전환)**
+
+    | 광고그룹명 | 액션 | 절감 예산 | 근거 |
+    |-----------|------|----------|------|
+    | `male3064-4890562-product` | **중단** | 일 1.3만 | ROAS 54%, 전환 1건, 회생 불가 |
+    | `male3064-4890509-product` | **중단** | 일 3.9만 | ROAS 199%, CPC 614원, 전환 부족 |
+    | `male3564-2604_ct_shortsleeve-promotion` | **예산 50% 축소** | 일 3.6만 | ROAS 304%, 시즌 초기 학습 대기 |
+    | `male3064-4890514-product` | **예산 30% 축소** | 일 3.5만 | ROAS 325%, 저단가 상품 비효율 |
+    """)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="gap-warn">', unsafe_allow_html=True)
+    st.markdown("""
+    **소재 교체/CPC 조정 (효율 개선)**
+
+    | 광고그룹명 | 액션 | 기대 효과 | 근거 |
+    |-----------|------|----------|------|
+    | `male3564-2601_br_cpcompany-promotion` | CPC 상한 400원 설정 + 소재 교체 | ROAS 387% → 430%+ | CPC 494원이 핵심 원인 |
+    | `male3564-2601_br_stoneisland-promotion` | CPC 상한 400원 설정 + 소재 교체 | ROAS 399% → 420%+ | CPC 548원, 1%p 차이로 미달 |
+    | `male4069-2601_ct_pgacutterbuck-promotion (BB)` | Bizboard 예산 축소 → Display로 이동 | ROAS 369% → 448%+ | Display는 ROAS 448% 달성 중 |
+    | `male3564-2512_ct_now-promotion (display)` | 소재 리프레시 | ROAS 380% → 400%+ | CPC 상승이 원인, 소재 피로도 |
+    """)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="gap-ok">', unsafe_allow_html=True)
+    st.markdown("""
+    **신규 오픈 (절감 예산 + 추가 예산 투입)**
+
+    | 광고그룹명 | 캠페인 | 일예산 | 근거 |
+    |-----------|--------|--------|------|
+    | `male4069-2601_ct_pgacutterbuck-promotion` | PBTD UA (신규) | 80만 | RT Display ROAS 448%, 전환 124건/주 |
+    | `male3564-2602_ct_benefit-promotion` | PBTD UA (신규) | 50만 | RT ROAS 650%, CPC 327원 |
+    | `male3064-2602_ct_runningshoes-promotion` | PBTD UA (신규) | 40만 | RT ROAS 515%(disp), 시즌 수요 |
+    | `male3564-2604_ct_hiking-promotion` | PBTD UA (신규) | 30만 | RT ROAS 454%, CPC 168원 최저 |
+    | `male3064-custom_lecaf_selection-promotion` | PBTD UA (기존) | 30만→50만 증액 | ROAS 502%, 전환 183건/주 검증 |
+    """)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # ─── 4. 이번 달(4월) 장기 계획 ───
+    st.markdown("### 4. 이번 달(4월) 장기 해결 로드맵")
+
+    roadmap = pd.DataFrame({
+        "주차": ["1주차 (4/7~13)", "2주차 (4/14~20)", "3주차 (4/21~27)", "4주차 (4/28~5/4)"],
+        "카카오 PBTD UA": [
+            "비효율 2개 중단 + 1순위 4개 오픈\n일예산 200만 시작",
+            "성과 리뷰, 2순위 3개 추가 오픈\n일예산 350만",
+            "전체 리뷰, 비효율 축소→고효율 확대\n일예산 450만",
+            "안정화, 일예산 500만 목표 도달\n월간 리포트 작성",
+        ],
+        "카카오 앱설치": [
+            "캠페인 셋업 + 소재 준비",
+            "일예산 50만 테스트 시작",
+            "학습 확인, 100만 증액",
+            "150만 목표 도달",
+        ],
+        "메타": [
+            "카탈로그 PDP 일 70만 확대\n시딩 캠페인 중단",
+            "앱구매 메인 일 50만 확대\n신규 기획전 그룹 오픈",
+            "크로스채널 소재 테스트",
+            "안정화, 일 100만 운영",
+        ],
+        "구글": [
+            "일예산 80만 증액",
+            "일예산 120만\ntROAS 캠페인 테스트",
+            "일예산 150만",
+            "안정화 + 카탈로그 캠페인 테스트",
+        ],
+    })
+    st.dataframe(roadmap, use_container_width=True, hide_index=True)
+
+    # ─── 갭 해소 시뮬레이션 ───
+    st.markdown("### 5. 4월 말 예상 지표 (갭 해소 시)")
+
+    sim_df = pd.DataFrame({
+        "항목": ["카카오 PBTD UA 일예산", "카카오 앱설치 일예산", "메타 일예산", "구글 일예산",
+                 "전체 UA 일예산 합계", "예상 평균 보정 ROAS", "예상 일 전환수", "예상 월 매출 증분"],
+        "현재 (14주차)": ["38만", "0", "146만", "53만", "237만", "504%", "~150건", "-"],
+        "4월 말 목표": ["500만", "150만", "100만", "150만", "900만", "430~470%", "~500건", "+5~6억"],
+        "갭": ["+462만", "+150만", "-46만", "+97만", "+663만", "-", "+350건", "-"],
+    })
+    st.dataframe(sim_df, use_container_width=True, hide_index=True)
+
+    st.markdown("""
+    > **핵심 메시지**: 효율(ROAS)은 전 채널 목표 달성 중이나, **볼륨(예산 집행)이 목표 대비 크게 부족**.
+    > 비효율 그룹 정리(일 12만 절감) + 신규 그룹 오픈으로 **일예산 38만 → 500만 단계적 확장**이 핵심 과제.
+    """)
+
 
 # ═══════════════════════════════════════════════════════════════
 # TAB 1: 전체 현황
@@ -57,7 +250,6 @@ with tab_overview:
     with col4:
         st.markdown('<div class="metric-card metric-yellow"><h3>구글 앱설치</h3><h1>683%</h1><h3>보정 ROAS | 비용 0.06억</h3></div>', unsafe_allow_html=True)
 
-    # ─── 채널별 비교 차트 ───
     channel_df = pd.DataFrame({
         "채널": ["카카오 RT\n(PBTD)", "카카오\n기존 UA", "메타\n카탈로그", "메타\n앱구매", "구글\n앱설치"],
         "비용(만)": [11290, 21019, 5461, 900, 636],
@@ -86,12 +278,10 @@ with tab_overview:
                                yaxis_title="보정 ROAS (%)")
         st.plotly_chart(fig_roas, use_container_width=True)
 
-    # ─── 전체 예산 배분안 ───
     st.markdown('<div class="section-header"><h3>UA 확장 예산 배분안 (일예산 기준)</h3></div>', unsafe_allow_html=True)
-
     budget_all = pd.DataFrame({
         "채널": ["카카오 UA (웹)", "카카오 앱설치-다운", "메타 앱설치-구매", "구글 앱설치-구매"],
-        "일예산": ["350만", "150만", "100만 (별도)", "50만 (별도)"],
+        "일예산": ["350만", "150만", "100만 (별도)", "50만→150만 (별도)"],
         "캠페인 유형": ["PBTD UA 기획전 중심", "앱설치 + 인앱구매 최적화", "앱설치-구매 (카탈로그+콘텐츠)", "앱 캠페인 Purchase 최적화"],
         "예상 보정ROAS": ["420~500%", "400~450% (테스트)", "550~700%", "600~700%"],
         "비고": ["기존 유지 + 신규 5개 그룹", "신규 캠페인 셋업 필요", "기존 확장 + 신규 소재", "예산 증액 + 소재 다양화"],
@@ -117,7 +307,6 @@ with tab_kakao:
     with col5:
         st.markdown('<div class="metric-card"><h3>PBTD UA 보정 ROAS</h3><h1>462%</h1></div>', unsafe_allow_html=True)
 
-    # ─── 주간 추이 ───
     weekly_data = pd.DataFrame({
         "주차": ["11주차 (3/9~)", "12주차 (3/16~)", "13주차 (3/23~)", "14주차 (3/30~)"],
         "RT ROAS(보정)": [4.40, 4.65, 5.33, 4.73],
@@ -137,72 +326,49 @@ with tab_kakao:
                             legend=dict(orientation="h", y=-0.15))
     st.plotly_chart(fig_trend, use_container_width=True)
 
-    # ═══ 카카오 UA 신규 오픈 광고그룹 ═══
-    st.markdown('<div class="section-header"><h3>카카오 UA 신규 오픈 광고그룹 (정확한 광고그룹명)</h3></div>', unsafe_allow_html=True)
+    # ═══ 신규 오픈 광고그룹 ═══
+    st.markdown('<div class="section-header"><h3>카카오 UA 신규 오픈 광고그룹</h3></div>', unsafe_allow_html=True)
     st.markdown("> **선정 기준**: RT 보정 ROAS 400%+ & 전환 검증됨 & 기존 PBTD UA에 미오픈")
 
-    # ─── 1순위 ───
     st.markdown("#### 1순위 - 즉시 오픈 (일예산 250만)")
     tier1 = pd.DataFrame({
-        "광고그룹명 (정확)": [
+        "광고그룹명": [
             "male4069-2601_ct_pgacutterbuck-promotion",
             "male3564-2602_ct_benefit-promotion",
             "male3564-2512_ct_now-promotion",
             "male3064-2602_ct_runningshoes-promotion",
             "male3564-2604_ct_hiking-promotion",
         ],
-        "캠페인": [
-            "bizboard / display",
-            "bizboard",
-            "bizboard / display",
-            "bizboard / display",
-            "bizboard",
-        ],
-        "RT 비용": ["1,450만", "426만", "829만", "768만", "56만"],
-        "RT 전환": [965, 213, 509, 439, 36],
-        "RT 보정ROAS": ["477%", "557%", "420%", "419%", "454%"],
-        "CPC": ["299원", "373원", "316원", "313원", "168원"],
+        "캠페인": ["bizboard / display", "bizboard", "bizboard / display", "bizboard / display", "bizboard"],
+        "14주 RT 보정ROAS": ["448% (disp)", "650%", "400%", "515% (disp)", "454%"],
+        "14주 전환": [124+95, 59, 103+30, 102+64, 36],
+        "CPC": ["294~304원", "327원", "257~370원", "304~457원", "168원"],
         "제안 일예산": ["80만", "50만", "50만", "40만", "30만"],
-        "오픈 근거": [
-            "RT 전환 1위(965건), Display CTR 2.93%",
-            "ROAS 557% 최상위, 중가 브랜드 전환 용이",
-            "전환 509건 볼륨 검증, CPC 적정",
-            "시즌 수요(러닝화) + 전환 439건",
-            "CPC 168원 최저, 시즌 기획전 활용",
-        ],
     })
     st.markdown('<div class="tier-1">', unsafe_allow_html=True)
     st.dataframe(tier1, use_container_width=True, hide_index=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # ─── 2순위 ───
     st.markdown("#### 2순위 - 테스트 오픈 (일예산 50만)")
     tier2 = pd.DataFrame({
-        "광고그룹명 (정확)": [
+        "광고그룹명": [
             "male3564-2604_ct_warehouserelease-promotion",
             "male3564-2604_ct_shortsleeve-promotion",
             "male3564-2601_ct_highend-promotion",
         ],
         "캠페인": ["bizboard", "bizboard", "bizboard"],
-        "RT 비용": ["74만", "50만", "68만"],
-        "RT 전환": [45, 19, 19],
-        "RT 보정ROAS": ["419%", "304%", "319%"],
+        "14주 RT 보정ROAS": ["419%", "304%", "319%"],
+        "14주 전환": [45, 19, 19],
         "CPC": ["353원", "459원", "390원"],
         "제안 일예산": ["20만", "15만", "15만"],
-        "오픈 근거": [
-            "아울렛 감성, 가성비 소구 적합",
-            "여름 시즌 선제 테스트",
-            "객단가 높아 소액 테스트 후 확장",
-        ],
     })
     st.markdown('<div class="tier-2">', unsafe_allow_html=True)
     st.dataframe(tier2, use_container_width=True, hide_index=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # ─── 3순위: 기존 PBTD UA 최적화 ───
     st.markdown("#### 3순위 - 기존 PBTD UA 최적화 (일예산 50만)")
     tier3 = pd.DataFrame({
-        "광고그룹명 (정확)": [
+        "광고그룹명": [
             "male3064-custom_lecaf_selection-promotion",
             "male3064-custom_ct_highbrand-promotion",
             "male3064-custom_ct_athleredition-promotion",
@@ -212,112 +378,45 @@ with tab_kakao:
             "bizboard_da_pr_pbtd-ua-purchase",
             "bizboard_da_pr_pbtd-ua-purchase",
         ],
-        "현재 비용": ["425만", "98만", "214만"],
-        "전환": [376, 7, 17],
-        "보정ROAS": ["518%", "785%", "398%"],
+        "14주 보정ROAS": ["502%", "785% (4주)", "277%"],
+        "14주 전환": [183, 7, 2],
         "CPC": ["222원", "133원", "153원"],
         "액션": [
-            "예산 확대 → 일 30만 (효율+볼륨 검증)",
-            "예산 확대 → 일 10만 (ROAS 최고, 볼륨 테스트)",
-            "소재 리프레시 후 유지 → 일 10만",
+            "예산 확대 → 일 30만",
+            "예산 확대 → 일 10만 (볼륨 테스트)",
+            "소재 리프레시 → 일 10만 유지",
         ],
     })
     st.markdown('<div class="tier-3">', unsafe_allow_html=True)
     st.dataframe(tier3, use_container_width=True, hide_index=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # ═══ 카카오 앱설치-다운 캠페인 (신규) ═══
+    # ═══ 앱설치 ═══
     st.markdown('<div class="section-header"><h3>카카오 앱설치-다운 캠페인 (신규 셋업)</h3></div>', unsafe_allow_html=True)
     st.markdown('<div class="tier-new">', unsafe_allow_html=True)
     st.markdown("""
     **현재 상태**: 카카오에 앱설치 캠페인 없음 → **신규 생성 필요**
 
-    #### 캠페인 셋업 가이드
-
     | 항목 | 설정값 |
     |------|--------|
-    | **캠페인 목표** | 앱 설치 → 인앱 이벤트(구매) 최적화 |
     | **캠페인명 (제안)** | `bizboard_da_pr_pbtd-ua-appinstall-purchase` |
     | **게재 지면** | Bizboard + Display (별도 캠페인) |
     | **일예산** | 150만 (Bizboard 100만 + Display 50만) |
-    | **입찰 전략** | 자동 입찰 (인앱 이벤트 최적화) |
     | **타겟** | 남성 30~64세, 앱 미설치자 |
 
-    #### 오픈 광고그룹 (RT 고효율 기획전 기반)
-
-    | 우선순위 | 광고그룹명 (제안) | 참조 RT 광고그룹 | 근거 |
-    |---------|-----------------|----------------|------|
-    | 1 | `male3064-appinstall_ct_pgacutterbuck-promotion` | male4069-2601_ct_pgacutterbuck-promotion | RT 전환 965건, ROAS 477% |
-    | 2 | `male3064-appinstall_lecaf_selection-promotion` | male3055-2508_lecaf_selection-promotion | RT ROAS 653% 최고, UA에서도 검증 |
-    | 3 | `male3064-appinstall_ct_benefit-promotion` | male3564-2602_ct_benefit-promotion | RT ROAS 557%, 중가 브랜드 |
-    | 4 | `male3064-appinstall_ct_now-promotion` | male3564-2512_ct_now-promotion | RT 전환 509건 볼륨 검증 |
-    | 5 | `male3064-appinstall_ct_runningshoes-promotion` | male3064-2602_ct_runningshoes-promotion | 시즌 수요 + RT 439건 |
-
-    #### 운영 전략
-    - **1~2주차**: 일예산 50만으로 시작, 학습 기간 확보
-    - **3~4주차**: 보정 ROAS 400% 이상 시 일예산 100만으로 증액
-    - **5주차~**: 150만까지 확장, 고효율 그룹에 집중
-    - **모니터링**: 앱 설치 단가(CPI)와 인앱 구매 전환율 주 1회 체크
-    - **소재**: 앱 설치 유도 CTA 포함 소재 별도 제작 필요 ("앱에서 더 싸게")
+    | 우선순위 | 광고그룹명 (제안) | 참조 RT 광고그룹 |
+    |---------|-----------------|----------------|
+    | 1 | `male3064-appinstall_ct_pgacutterbuck-promotion` | RT 전환 965건, ROAS 477% |
+    | 2 | `male3064-appinstall_lecaf_selection-promotion` | RT ROAS 653%, UA 검증 |
+    | 3 | `male3064-appinstall_ct_benefit-promotion` | RT ROAS 557% |
+    | 4 | `male3064-appinstall_ct_now-promotion` | RT 전환 509건 |
+    | 5 | `male3064-appinstall_ct_runningshoes-promotion` | 시즌 수요 + RT 439건 |
     """)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # ─── RT 성과 맵 ───
-    st.markdown('<div class="section-header"><h3>RT 광고그룹 성과 맵 (비용 vs ROAS)</h3></div>', unsafe_allow_html=True)
-
-    rt_ag = pd.DataFrame({
-        "광고그룹": [
-            "lecaf_selection", "stoneisland", "pgacutterbuck", "highbrand",
-            "cpcompany", "now", "runningshoes", "athleredition",
-            "benefit", "product-3570214", "product-4890514", "rowen",
-            "hiking", "warehouserelease", "highend", "shortsleeve",
-        ],
-        "정확한 이름": [
-            "male3055-2508_lecaf_selection-promotion",
-            "male3564-2601_br_stoneisland-promotion",
-            "male4069-2601_ct_pgacutterbuck-promotion",
-            "male3564-2601_ct_highbrand-promotion",
-            "male3564-2601_br_cpcompany-promotion",
-            "male3564-2512_ct_now-promotion",
-            "male3064-2602_ct_runningshoes-promotion",
-            "male3564-2602_ct_athleredition-promotion",
-            "male3564-2602_ct_benefit-promotion",
-            "male4064-3570214-product",
-            "male3064-4890514-product",
-            "male3059-2601_br_sub_rowen-promotion",
-            "male3564-2604_ct_hiking-promotion",
-            "male3564-2604_ct_warehouserelease-promotion",
-            "male3564-2601_ct_highend-promotion",
-            "male3564-2604_ct_shortsleeve-promotion",
-        ],
-        "비용(만)": [935, 1720, 1450, 819, 1252, 829, 768, 538, 426, 641, 413, 205, 56, 74, 68, 50],
-        "보정ROAS(%)": [653, 487, 477, 639, 429, 420, 419, 508, 557, 418, 503, 353, 454, 419, 319, 304],
-        "전환수": [1020, 397, 965, 223, 312, 509, 439, 149, 213, 275, 375, 78, 36, 45, 19, 19],
-        "유형": [
-            "기획전", "브랜드", "기획전", "기획전",
-            "브랜드", "기획전", "기획전", "기획전",
-            "기획전", "상품", "상품", "브랜드",
-            "기획전", "기획전", "기획전", "기획전",
-        ]
-    })
-
-    fig_scatter = px.scatter(
-        rt_ag, x="비용(만)", y="보정ROAS(%)",
-        size="전환수", color="유형", hover_data=["정확한 이름"], text="광고그룹",
-        color_discrete_map={"기획전": "#22c55e", "브랜드": "#f59e0b", "상품": "#8b5cf6"},
-        size_max=50
-    )
-    fig_scatter.add_hline(y=400, line_dash="dash", line_color="#ef4444", annotation_text="목표 ROAS 400%")
-    fig_scatter.update_traces(textposition="top center", textfont_size=9)
-    fig_scatter.update_layout(height=500, template="plotly_dark",
-        xaxis_title="4주 비용 (만원)", yaxis_title="보정 ROAS (%)",
-        legend=dict(orientation="h", y=-0.12))
-    st.plotly_chart(fig_scatter, use_container_width=True)
-    st.caption("원 크기 = 전환수 | 빨간 점선 위 = 목표 달성 | 마우스 오버 시 정확한 광고그룹명 확인")
-
 
 # ═══════════════════════════════════════════════════════════════
-# TAB 3: 메타 (앱설치-구매)
+# TAB 3: 메타
 # ═══════════════════════════════════════════════════════════════
 with tab_meta:
     st.markdown('<div class="channel-meta"><h3>메타 앱설치-구매 캠페인 전략</h3></div>', unsafe_allow_html=True)
@@ -332,51 +431,25 @@ with tab_meta:
     with col4:
         st.markdown('<div class="metric-card metric-green"><h3>앱구매 보정 ROAS</h3><h1>600%</h1></div>', unsafe_allow_html=True)
 
-    # ─── 메타 현재 캠페인 성과 ───
-    st.markdown('<div class="section-header"><h3>현재 메타 캠페인 성과</h3></div>', unsafe_allow_html=True)
-
     meta_campaigns = pd.DataFrame({
         "캠페인": [
             "catalog_da_pdp-ua-purchase-utm4",
             "catalog_da_pr-ua-purchase",
             "facebook_da_pr-ua-apppurchase-android-main",
             "facebook_da_pr-ua-apppurchase-android-seeding",
-            "facebook_da_pr-ua-apppurchase-android- test",
         ],
-        "유형": ["카탈로그 (PDP)", "카탈로그 (기획전)", "앱구매 (메인)", "앱구매 (시딩)", "앱구매 (테스트)"],
-        "비용": ["3,161만", "1,344만", "790만", "60만", "52만"],
-        "전환": [2585, 770, 401, 9, 18],
-        "Raw ROAS": ["4.52", "3.40", "3.41", "0.52", "2.44"],
-        "보정 ROAS": ["795%", "598%", "600%", "92%", "429%"],
-        "CPC": ["118원", "214원", "415원", "658원", "577원"],
-        "판단": ["확대", "확대", "확대", "중단", "유지/관찰"],
+        "유형": ["카탈로그 (PDP)", "카탈로그 (기획전)", "앱구매 (메인)", "앱구매 (시딩)"],
+        "비용": ["3,161만", "1,344만", "790만", "60만"],
+        "전환": [2585, 770, 401, 9],
+        "보정 ROAS": ["795%", "598%", "600%", "92%"],
+        "CPC": ["118원", "214원", "415원", "658원"],
+        "판단": ["확대", "확대", "확대", "중단"],
     })
     st.dataframe(meta_campaigns, use_container_width=True, hide_index=True)
 
-    # ─── 메타 주간 추이 ───
-    meta_weekly = pd.DataFrame({
-        "주차": ["11주차", "12주차", "13주차", "14주차"],
-        "카탈로그PDP": [3.73, 4.86, 5.27, 4.39],
-        "카탈로그기획전": [2.64, 2.79, 3.54, 5.12],
-        "앱구매메인": [3.36, 3.85, 2.72, 3.53],
-    })
-    fig_meta = go.Figure()
-    fig_meta.add_trace(go.Scatter(x=meta_weekly["주차"], y=meta_weekly["카탈로그PDP"],
-        name="카탈로그 PDP", mode="lines+markers", line=dict(color="#a855f7", width=3)))
-    fig_meta.add_trace(go.Scatter(x=meta_weekly["주차"], y=meta_weekly["카탈로그기획전"],
-        name="카탈로그 기획전", mode="lines+markers", line=dict(color="#3b82f6", width=3)))
-    fig_meta.add_trace(go.Scatter(x=meta_weekly["주차"], y=meta_weekly["앱구매메인"],
-        name="앱구매 메인", mode="lines+markers", line=dict(color="#22c55e", width=3)))
-    fig_meta.add_hline(y=2.27, line_dash="dash", line_color="#ef4444", annotation_text="마지노 Raw 2.27")
-    fig_meta.update_layout(title="메타 캠페인별 Raw ROAS 주간 추이", height=380, template="plotly_dark",
-                           yaxis_title="Raw ROAS", legend=dict(orientation="h", y=-0.15))
-    st.plotly_chart(fig_meta, use_container_width=True)
-
-    # ─── 메타 광고그룹 성과 ───
-    st.markdown('<div class="section-header"><h3>메타 광고그룹별 성과 (상위)</h3></div>', unsafe_allow_html=True)
-
+    st.markdown('<div class="section-header"><h3>메타 광고그룹별 성과</h3></div>', unsafe_allow_html=True)
     meta_ag = pd.DataFrame({
-        "광고그룹명 (정확)": [
+        "광고그룹명": [
             "male3554-all_product_catalog-product-incremental2",
             "male3064-apppurchase_contents-promotion-main",
             "male3064-2603_focus_fahrenheit_outlet-promotion",
@@ -387,14 +460,10 @@ with tab_meta:
             "male3064-2603_br_ilcorso-promotion",
         ],
         "캠페인": [
-            "catalog_da_pdp-ua-purchase-utm4",
-            "facebook_da_pr-ua-apppurchase-android-main",
-            "catalog_da_pr-ua-purchase",
-            "catalog_da_pr-ua-purchase",
-            "catalog_da_pr-ua-purchase",
-            "catalog_da_pr-ua-purchase",
-            "catalog_da_pr-ua-purchase",
-            "catalog_da_pr-ua-purchase",
+            "catalog_da_pdp-ua-purchase-utm4", "facebook_da_pr-ua-apppurchase-android-main",
+            "catalog_da_pr-ua-purchase", "catalog_da_pr-ua-purchase",
+            "catalog_da_pr-ua-purchase", "catalog_da_pr-ua-purchase",
+            "catalog_da_pr-ua-purchase", "catalog_da_pr-ua-purchase",
         ],
         "비용": ["3,161만", "790만", "300만", "280만", "264만", "193만", "104만", "36만"],
         "전환": [2585, 401, 147, 200, 156, 128, 63, 24],
@@ -403,37 +472,19 @@ with tab_meta:
     })
     st.dataframe(meta_ag, use_container_width=True, hide_index=True)
 
-    # ─── 메타 확장 전략 ───
-    st.markdown('<div class="section-header"><h3>메타 앱설치-구매 확장 전략</h3></div>', unsafe_allow_html=True)
     st.markdown("""
-    #### 현재 상황
-    - **카탈로그 PDP** (보정 795%): 최고 효율, CPC 118원으로 볼륨 확장 여지 큼
-    - **앱구매 메인** (보정 600%): 안정적이나 CPC 415원으로 높은 편
-    - **시딩 캠페인** (보정 92%): 효율 나쁨 → 중단 권장
-
     #### 확장 방향
-
     | 액션 | 캠페인 | 상세 |
     |------|--------|------|
-    | **예산 확대** | catalog_da_pdp-ua-purchase-utm4 | 일 45만 → 70만, CPC 118원이라 볼륨 충분 |
-    | **예산 확대** | facebook_da_pr-ua-apppurchase-android-main | 일 30만 → 50만, 앱구매 직접 최적화 |
-    | **신규 오픈** | 카탈로그 기획전 신규 그룹 | hazzys, maestro 등 고효율 브랜드 확장 |
-    | **중단** | facebook_da_pr-ua-apppurchase-android-seeding | ROAS 92%, 비용 낭비 |
-    | **소재 전략** | 전체 | 카카오와 동일 기획전 소재 활용 (크로스채널) |
-
-    #### 신규 광고그룹 제안
-
-    | 광고그룹명 (제안) | 근거 |
-    |-----------------|------|
-    | `male3064-sel_br_elcanto-promotion` | 카카오 UA에서 ROAS 602% 검증 |
-    | `male3064-sel_ct_pgacutterbuck-promotion` | 카카오 RT 전환 1위 상품 |
-    | `male3064-2603_ct_benefit-promotion` | 카카오 RT ROAS 557% 기획전 |
-    | `male3064-sel_ct_runningshoes-promotion` | 시즌 수요 + 카카오 검증 |
+    | **예산 확대** | catalog_da_pdp-ua-purchase-utm4 | 일 45만 → 70만 |
+    | **예산 확대** | facebook_da_pr-ua-apppurchase-android-main | 일 30만 → 50만 |
+    | **중단** | facebook_da_pr-ua-apppurchase-android-seeding | ROAS 92% |
+    | **신규 오픈** | 카카오 검증 기획전 크로스채널 | pgacutterbuck, benefit 등 |
     """)
 
 
 # ═══════════════════════════════════════════════════════════════
-# TAB 4: 구글 (앱설치-구매)
+# TAB 4: 구글
 # ═══════════════════════════════════════════════════════════════
 with tab_google:
     st.markdown('<div class="channel-google"><h3>구글 앱설치-구매 캠페인 전략</h3></div>', unsafe_allow_html=True)
@@ -448,112 +499,44 @@ with tab_google:
     with col4:
         st.markdown('<div class="metric-card"><h3>CPC</h3><h1>421원</h1></div>', unsafe_allow_html=True)
 
-    # ─── 구글 현재 캠페인 ───
-    st.markdown('<div class="section-header"><h3>현재 구글 캠페인 성과</h3></div>', unsafe_allow_html=True)
-
     google_camp = pd.DataFrame({
-        "캠페인": [
-            "App promotion-AppInstall-ua-Purchase",
-            "App promotion-AppInstall-ua-Install",
-        ],
-        "광고그룹명 (정확)": [
-            "Ad group 20260206 pre-contents-purchase",
-            "Ad group 20260206 pre-contents-install",
-        ],
-        "비용": ["636만", "0원 (전환만)"],
+        "캠페인": ["App promotion-AppInstall-ua-Purchase", "App promotion-AppInstall-ua-Install"],
+        "광고그룹명": ["Ad group 20260206 pre-contents-purchase", "Ad group 20260206 pre-contents-install"],
+        "비용": ["636만", "0원"],
         "전환": [470, 4],
-        "Raw ROAS": ["3.88", "-"],
         "보정 ROAS": ["683%", "-"],
-        "CPC": ["421원", "-"],
-        "상태": ["운영 중 (3/26~)", "학습 전/미집행"],
+        "상태": ["운영 중 (3/26~)", "미집행"],
     })
     st.dataframe(google_camp, use_container_width=True, hide_index=True)
 
-    # ─── 구글 주간 추이 ───
     google_weekly = pd.DataFrame({
         "주차": ["13주차 (3/23~)", "14주차 (3/30~)"],
         "비용(만)": [217, 386],
         "전환": [148, 285],
-        "Raw ROAS": [3.24, 4.13],
         "보정ROAS(%)": [570, 727],
     })
-
-    col_gl, col_gr = st.columns(2)
-    with col_gl:
-        fig_gw = go.Figure()
-        fig_gw.add_trace(go.Bar(x=google_weekly["주차"], y=google_weekly["비용(만)"],
-            name="비용(만)", marker_color="#22c55e"))
-        fig_gw.add_trace(go.Scatter(x=google_weekly["주차"], y=google_weekly["보정ROAS(%)"],
-            name="보정 ROAS(%)", yaxis="y2", mode="lines+markers+text",
-            text=[f"{v}%" for v in google_weekly["보정ROAS(%)"]],
-            textposition="top center", line=dict(color="#eab308", width=3), marker=dict(size=12)))
-        fig_gw.update_layout(
-            title="구글 앱설치 주간 추이", height=380, template="plotly_dark",
-            yaxis=dict(title="비용 (만원)"),
-            yaxis2=dict(title="보정 ROAS (%)", overlaying="y", side="right"),
-            legend=dict(orientation="h", y=-0.15)
-        )
-        st.plotly_chart(fig_gw, use_container_width=True)
-
-    with col_gr:
-        st.markdown("""
-        #### 핵심 포인트
-        - **2주 만에 ROAS 570% → 727%로 급상승** (학습 효과)
-        - 전환수도 148건 → 285건으로 **약 2배 증가**
-        - 비용 대비 효율이 전 채널 중 가장 높음
-        - **결론: 가장 빠르게 스케일업 가능한 채널**
-        """)
-
-    # ─── 구글 확장 전략 ───
-    st.markdown('<div class="section-header"><h3>구글 앱설치-구매 확장 전략</h3></div>', unsafe_allow_html=True)
+    fig_gw = go.Figure()
+    fig_gw.add_trace(go.Bar(x=google_weekly["주차"], y=google_weekly["비용(만)"], name="비용(만)", marker_color="#22c55e"))
+    fig_gw.add_trace(go.Scatter(x=google_weekly["주차"], y=google_weekly["보정ROAS(%)"],
+        name="보정 ROAS(%)", yaxis="y2", mode="lines+markers+text",
+        text=[f"{v}%" for v in google_weekly["보정ROAS(%)"]], textposition="top center",
+        line=dict(color="#eab308", width=3), marker=dict(size=12)))
+    fig_gw.update_layout(title="구글 앱설치 주간 추이", height=380, template="plotly_dark",
+        yaxis=dict(title="비용 (만원)"), yaxis2=dict(title="보정 ROAS (%)", overlaying="y", side="right"),
+        legend=dict(orientation="h", y=-0.15))
+    st.plotly_chart(fig_gw, use_container_width=True)
 
     st.markdown("""
-    #### 현재 상황
-    - 3/26부터 운영 시작, 아직 **2주차**지만 ROAS가 빠르게 개선 중
-    - 광고그룹 1개만 운영 중 → 확장 여지가 매우 큼
-    - 구글 앱 캠페인 특성상 머신러닝 학습이 핵심 (소재/타겟 자동 최적화)
-
     #### 확장 계획
-
     | 단계 | 기간 | 일예산 | 목표 |
     |------|------|--------|------|
     | **현재** | 3/26~ (2주차) | ~46만 | 학습 안정화 |
-    | **1단계** | 4월 2주차 | 80만 | ROAS 유지하며 볼륨 확대 |
-    | **2단계** | 4월 3주차 | 120만 | 전환수 일 40건+ 목표 |
-    | **3단계** | 4월 4주차~ | 150만 | 안정화 후 최대 확장 |
+    | **1단계** | 4월 2주차 | 80만 | ROAS 유지 + 볼륨 확대 |
+    | **2단계** | 4월 3주차 | 120만 | 전환수 일 40건+ |
+    | **3단계** | 4월 4주차~ | 150만 | tROAS 캠페인 테스트 |
 
-    #### 추가 캠페인/광고그룹 제안
-
-    | 캠페인 유형 | 설명 | 예상 효과 |
-    |------------|------|----------|
-    | **Purchase 최적화 (현재)** | 기존 캠페인 예산 확대 | ROAS 600%+ 유지하며 볼륨 확대 |
-    | **tROAS 캠페인 (신규)** | 목표 ROAS 설정 (350%) | 구글 ML이 ROAS 기준 자동 최적화 |
-    | **카탈로그 기반 (신규)** | 상품 피드 연동 | 메타 카탈로그처럼 자동 소재 생성 |
-
-    #### 소재 전략
-    - 구글 앱 캠페인은 **텍스트 + 이미지 + 영상** 조합으로 자동 생성
-    - 카카오/메타에서 검증된 **기획전 이미지** 그대로 활용
-    - 앱 스토어 스크린샷 최적화 병행 (전환율 영향)
-
-    #### 주의사항
-    - 구글 앱 캠페인은 예산을 **급격히 올리면 학습이 리셋**됨 → 20~30%씩 점진 증액
-    - 최소 50건/주 전환 데이터가 쌓여야 학습 안정화
-    - Install 캠페인은 전환 없이 비용만 소진 → **Purchase 캠페인에 집중**
+    **주의**: 예산 급격 증가 시 학습 리셋 → **20~30%씩 점진 증액**
     """)
 
-
-# ═══════════════════════════════════════════════════════════════
-# 하단 요약
-# ═══════════════════════════════════════════════════════════════
 st.markdown("---")
-st.markdown("""
-#### 전체 실행 타임라인
-
-| 주차 | 카카오 UA | 카카오 앱설치 | 메타 | 구글 |
-|------|----------|------------|------|------|
-| **1주차** (4/7~) | 1순위 5개 오픈 | 캠페인 셋업 | 예산 확대 | 예산 80만 증액 |
-| **2주차** (4/14~) | 성과 확인, 2순위 오픈 | 소액 테스트 시작 | 신규 그룹 오픈 | 예산 120만 |
-| **3주차** (4/21~) | 전체 리뷰, 비효율 축소 | 학습 확인, 증액 | 크로스채널 소재 테스트 | 예산 150만 |
-| **4주차** (4/28~) | 안정화, 월간 리포트 | 150만 목표 도달 | 안정화 | tROAS 캠페인 테스트 |
-""")
 st.caption("마지막 업데이트: 2026-04-07 | 데이터 출처: Redash DATA_DB marketing_cost")
