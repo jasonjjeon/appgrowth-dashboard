@@ -1,5 +1,5 @@
 [bind]
-name = "앱그로스 주간 성과 대시보드"
+name = "앱그로스 주간 성과 분석"
 
 [server]
 headless = true

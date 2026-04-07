@@ -7,12 +7,12 @@ from plotly.subplots import make_subplots
 # 페이지 설정
 # ──────────────────────────────────────────────
 st.set_page_config(
-    page_title="앱그로스 주간 성과 대시보드",
+    page_title="앱그로스 주간 성과 분석",
     page_icon="📱",
     layout="wide",
 )
 
-st.title("📱 앱그로스 주간 성과 대시보드")
+st.title("📱 앱그로스 주간 성과 분석")
 st.caption("W1 (3/23~3/29) vs W2 (3/30~4/5) | Google · Facebook 캠페인 비교")
 
 # ──────────────────────────────────────────────
