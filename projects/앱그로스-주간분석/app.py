@@ -59,7 +59,7 @@ COLORS = {"Google": "#4285F4", "Facebook": "#1877F2"}
 WEEK_COLORS = {"W1": "#5B8FF9", "W2": "#FF6B6B"}
 
 # ──────────────────────────────────────────────
-# 메타 광고소재별 데이터 (marketing_reportrow + airbridge_raw.events)
+# 메타 광고소재별 데이터 (DATA_DB > marketing_cost)
 # ──────────────────────────────────────────────
 CREATIVE_RAW = {
     "소재명": [
@@ -505,7 +505,7 @@ with tab5:
 # ──────────────── 메타 소재별 탭 ────────────────
 with tab_cr:
     st.subheader("🎨 메타(Facebook) 광고소재별 성과")
-    st.caption("marketing_reportrow (노출·클릭·비용) + airbridge_raw.events (전환) 기준")
+    st.caption("DATA_DB > marketing_cost 기준")
 
     cr_w2 = cr_df[cr_df["주차"] == "W2"].copy()
     cr_w1 = cr_df[cr_df["주차"] == "W1"].copy()
