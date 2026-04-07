@@ -441,7 +441,7 @@ with tab4:
     with col3:
         # ROAS 비교 (손익분기선 포함)
         fig = make_grouped_bar(filtered_df, "ROAS", "ROAS (구매액 / Cost)", "%", suffix="%")
-        fig.add_hline(y=100, line_dash="dash", line_color="red", annotation_text="손익분기 100%")
+        fig.add_hline(y=500, line_dash="dash", line_color="red", annotation_text="OKR 목표 500%")
         st.plotly_chart(fig, use_container_width=True)
 
     with col4:
@@ -731,7 +731,7 @@ with tab_cr:
                     orientation="h", marker_color=WEEK_COLORS[w],
                     text=[f"{v:.0f}%" for v in cr_pivot_roas[w]], textposition="outside",
                 ))
-        fig.add_vline(x=100, line_dash="dash", line_color="red", annotation_text="손익분기")
+        fig.add_vline(x=500, line_dash="dash", line_color="red", annotation_text="OKR 목표 500%")
         fig.update_layout(title="ROAS (구매액 / 비용)", xaxis_title="%", barmode="group", height=450, margin=dict(l=200))
         st.plotly_chart(fig, use_container_width=True)
 
@@ -863,7 +863,7 @@ with tab6:
         height=500,
         showlegend=True,
     )
-    fig.add_hline(y=100, line_dash="dash", line_color="red", annotation_text="손익분기")
+    fig.add_hline(y=500, line_dash="dash", line_color="red", annotation_text="OKR 목표 500%")
     st.plotly_chart(fig, use_container_width=True)
 
     # 주요 비교표
