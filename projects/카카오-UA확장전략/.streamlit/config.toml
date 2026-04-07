@@ -1,0 +1,5 @@
+[bind]
+name = "카카오 UA 확장 전략"
+
+[server]
+headless = true
